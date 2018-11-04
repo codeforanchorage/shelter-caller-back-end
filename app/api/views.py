@@ -114,9 +114,9 @@ def callhistory(page):
                   .join(date_list, true())\
                   .outerjoin(Count, (Count.day == cast(column('gen_day'), Date)) &\
                                     (Count.shelter_id == Shelter.id))\
-                  .group_by(Shelter.name)
+                  .group_by(Shelter.name)\
+                  .order_by(Shelter.name)
 
-   
     results = {
         "dates": [d.to_date_string() for d in (today - backthen)],
         "shelters": [row._asdict() for row in time_series]

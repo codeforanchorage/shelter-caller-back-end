@@ -89,6 +89,7 @@ def collect():
     shelterID     = request.form.get('shelterID') 
     contact_type  = request.form.get('contactType') or 'unknown'
 
+    bedcount = None
     # TODO this trusts that shelterID has been validated by an earlier request. 
     if input:
         bedcount = input
