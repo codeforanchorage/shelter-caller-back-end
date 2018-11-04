@@ -6,7 +6,7 @@ from sqlalchemy import Date, Interval, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import func, column, text
-from sqlalchemy.sql.expression import cast
+from sqlalchemy.sql.expression import cast, true
 from . import api
 from flask import request, jsonify
 from .forms import newShelterForm
@@ -109,18 +109,16 @@ def callhistory(page):
     today = pendulum.today(tz).subtract(days = (int(page) * pagesize))
     backthen = pendulum.today(tz).subtract(days=daysback)
     
-    ''' TODO figure out how to do this in sqlalchemy's ORM '''
-    q = text(
-        """SELECT array_agg(counts.bedcount) as data, shelters.name as label 
-         FROM generate_series(:start, :stop, interval '1 days') as day 
-         CROSS JOIN  shelters 
-         LEFT OUTER JOIN counts on counts.day = day.day AND counts.shelter_id = shelters.id 
-         GROUP BY shelters.name
-         ORDER BY shelters.name"""
-    )
-    shelter_dates = db.session.execute(q, {'start':backthen.to_date_string(), 'stop':today.to_date_string()} )
+    date_list = func.generate_series(backthen, today, '1 day').alias('gen_day')
+    time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.bedcount).label('data'))\
+                  .join(date_list, true())\
+                  .outerjoin(Count, (Count.day == cast(column('gen_day'), Date)) &\
+                                    (Count.shelter_id == Shelter.id))\
+                  .group_by(Shelter.name)
+
+   
     results = {
         "dates": [d.to_date_string() for d in (today - backthen)],
-        "shelters": [dict(row.items()) for row in shelter_dates]
+        "shelters": [row._asdict() for row in time_series]
     }
     return jsonify(results)
