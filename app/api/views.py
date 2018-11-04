@@ -2,15 +2,15 @@ import logging
 import os
 import pendulum # datetime with friendlier timezones
 from flask_cors import CORS, cross_origin
-from sqlalchemy import Date, Interval, desc
+from sqlalchemy import Date, Interval, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, subqueryload
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, column, text
 from sqlalchemy.sql.expression import cast
 from . import api
 from flask import request, jsonify
 from .forms import newShelterForm
-from ..models import db, Shelter, Call
+from ..models import db, Shelter, Call, Count
 
 tz = os.environ['PEND_TZ'] 
 
@@ -85,45 +85,42 @@ def update_shelter():
 @api.route('/calls/<daysback>', methods=['GET'])
 @cross_origin()
 def calls(daysback):
-    # start of today utc
     today = pendulum.today(tz).subtract(days = int(daysback))
-    print(today)
-    calls = db.session.query(Call.shelter_id, func.jsonb_build_object('count', Call.bedcount, 'time', Call.time, 'id', Call.id).label('calls'))\
-            .filter(cast(func.timezone(tz, Call.time), Date) == cast(today, Date))\
-            .order_by(Call.time)\
-            .subquery()
-    # becuase of the outer join the calls array may be [null]
-    # arr_remove will remove it from the array and produce the much nicer mepty array: []
-    shelters = db.session.query(Shelter.name, Shelter.capacity, func.array_remove(func.array_agg(calls.c.calls), None).label('calls'))\
-               .outerjoin(calls, Shelter.id == calls.c.shelter_id)\
-               .group_by(Shelter.name, Shelter.capacity)\
-               .order_by(Shelter.name).all()
-    
-    result_dict = map(lambda q: q._asdict(), shelters)
+    print( today.isoformat(' '))
+    count_calls = db.session.query(Count.shelter_id.label("shelterID"), Count.bedcount, Count.day, Count.call_id, Call.time)\
+                  .join(Call).filter(Count.day == today.isoformat(' '))\
+                  .subquery()
+
+    counts = db.session.query(Shelter.name, Shelter.capacity, count_calls)\
+             .outerjoin(count_calls, (Shelter.id == count_calls.c.shelterID))\
+             .order_by(Shelter.name)
+
+    result_dict = map(lambda q: q._asdict(), counts)
     ret = {"date": today.format('ddd, MMM D, YYYY'), "counts": list(result_dict)}
     return jsonify(ret)
-
+    
 @api.route('/callhistory/', methods=['GET'], defaults = {'page': 0})
 @api.route('/callhistory/<page>/', methods=['GET'])
 @cross_origin()
 def callhistory(page):
     pagesize = 14 # days
     daysback = int(page) * pagesize + pagesize - 1
-    print(daysback, page)
+
     today = pendulum.today(tz).subtract(days = (int(page) * pagesize))
     backthen = pendulum.today(tz).subtract(days=daysback)
-
-    dateRange = {d.to_date_string():[] for d in (today - backthen)}
-    calls = db.session.query(Shelter.name , cast(func.timezone(tz, Call.time), Date).label('day'), func.array_agg(func.jsonb_build_object('count', Call.bedcount, 'time', Call.time)).label('calls'))\
-            .filter((Call.time > backthen) & (Call.time <= today.add(days = 1)))\
-            .outerjoin(Call, Shelter.id == Call.shelter_id)\
-            .group_by('day', Shelter.name)\
-            .order_by('day')
     
-    for row in calls:
-        row = row._asdict()
-        row['day'] = str(row['day']) # prevent jsonify from convertint datetime.date to GMT string.
-        row['lastcall'] = max(row['calls'], key=lambda item: item['time'])
-        dateRange[str(row['day'])].append(row)
-    
-    return jsonify(dateRange)
+    ''' TODO figure out how to do this in sqlalchemy's ORM '''
+    q = text(
+        """SELECT array_agg(counts.bedcount) as data, shelters.name as label 
+         FROM generate_series(:start, :stop, interval '1 days') as day 
+         CROSS JOIN  shelters 
+         LEFT OUTER JOIN counts on counts.day = day.day AND counts.shelter_id = shelters.id 
+         GROUP BY shelters.name
+         ORDER BY shelters.name"""
+    )
+    shelter_dates = db.session.execute(q, {'start':backthen.to_date_string(), 'stop':today.to_date_string()} )
+    results = {
+        "dates": [d.to_date_string() for d in (today - backthen)],
+        "shelters": [dict(row.items()) for row in shelter_dates]
+    }
+    return jsonify(results)

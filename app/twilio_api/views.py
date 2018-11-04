@@ -7,7 +7,9 @@ from flask import request, jsonify, Response
 from sqlalchemy.exc import IntegrityError
 import re
 import os
-from ..models import Shelter, Call, db
+from ..models import Shelter, Call, db, Count, contact_types
+
+tz = os.environ['PEND_TZ'] 
 
 def fail(reason=None):
     return jsonify({"success": False, "error": reason})
@@ -81,29 +83,31 @@ def collect():
     # beds will be defined if a user keyed in a number
     # text will be defined if the user said something
 
-    beds       = request.form.get('numberOfBeds')
-    text       = request.form.get('spokenText')
-    fromPhone  = request.form.get('phone')
-    shelterID  = request.form.get('shelterID') 
-    
+    input         = request.form.get('numberOfBeds')
+    text          = request.form.get('spokenText')
+    fromPhone     = request.form.get('phone')
+    shelterID     = request.form.get('shelterID') 
+    contact_type  = request.form.get('contactType') or 'unknown'
+
     # TODO this trusts that shelterID has been validated by an earlier request. 
-
-    if text and not beds:     # try spoken text, but only if there's a single number in the response
+    if input:
+        bedcount = input
+    elif text:     # try spoken text, but only if there's a single number in the response
         numbers = re.findall('\d+', text)
+        input = text
         if len(numbers) == 1:
-            beds = numbers[0]
-    if beds and beds.isdigit() and shelterID:
-        logging.warn("%s beds from %s: %s" % (beds, shelterID, fromPhone))
+            bedcount = numbers[0]
+    if bedcount and bedcount.isdigit() and shelterID:
+        logging.warn("%s beds from %s: %s" % (bedcount, shelterID, fromPhone))
         
-        #shelter = Shelter.query.get(shelterID)
-        #if not shelter:
-        #    return fail("Unable to identify shelter")
-
-        call = Call(shelter_id=shelterID, bedcount=beds, from_number=fromPhone)
+        today = pendulum.today(os.environ['PEND_TZ'])
+        
+        call = Call(shelter_id=shelterID, bedcount=bedcount, inputtext=input, from_number=fromPhone, contact_type=contact_type)
+        count = Count(call = call, shelter_id=shelterID, bedcount=bedcount, day=today.isoformat(' '))
         try:
-            db.session.add(call)
+            db.session.merge(count)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
             db.session.commit()
-        except IntegrityError as e:    # calls has a foreign key constraint linking it to shelters
+        except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
             logging.error(e.orig.args)
             db.session().rollback()
             return fail("Could not record call because of database error")
