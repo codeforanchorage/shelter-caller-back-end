@@ -2,7 +2,7 @@ import logging
 import os
 import pendulum # datetime with friendlier timezones
 from flask_cors import CORS, cross_origin
-from sqlalchemy import Date, Interval, desc, select
+from sqlalchemy import Date, Interval, desc, select, String
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import func, column, text
@@ -10,7 +10,7 @@ from sqlalchemy.sql.expression import cast, true
 from . import api
 from flask import request, jsonify
 from .forms import newShelterForm
-from ..models import db, Shelter, Call, Count
+from ..models import db, Shelter, Call, Count, contact_types
 
 tz = os.environ['PEND_TZ'] 
 
@@ -99,10 +99,10 @@ def calls(daysback):
     ret = {"date": today.format('ddd, MMM D, YYYY'), "counts": list(result_dict)}
     return jsonify(ret)
     
-@api.route('/callhistory/', methods=['GET'], defaults = {'page': 0})
-@api.route('/callhistory/<page>/', methods=['GET'])
+@api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
+@api.route('/counthistory/<page>/', methods=['GET'])
 @cross_origin()
-def callhistory(page):
+def counthistory(page):
     pagesize = 14 # days
     daysback = int(page) * pagesize + pagesize - 1
 
@@ -122,3 +122,22 @@ def callhistory(page):
         "shelters": [row._asdict() for row in time_series]
     }
     return jsonify(results)
+
+
+@api.route('/callhistory/<shelterid>/', methods=['GET'])
+@api.route('/callhistory/<shelterid>/<page>/', methods=['GET'])
+@cross_origin()
+def callhistory(shelterid, page=0):
+    pagesize = 15 #records
+    offset = pagesize * int(page)
+    shelter = Shelter.query.get_or_404(shelterid)
+    
+    calls = db.session.query(Call.time, Call.shelter_id, Call.inputtext, Call.contact_type)\
+            .filter_by(shelter_id = shelterid)\
+            .order_by(Call.time.desc())\
+            .limit(pagesize).offset(offset)
+
+    result = [row._asdict() for row in calls]
+    for row in result: # enums are not json serializanle !?! TODO: see of there's a better way
+        row['contact_type'] = row['contact_type'].value
+    return jsonify(shelter=shelter.name, calls=result)

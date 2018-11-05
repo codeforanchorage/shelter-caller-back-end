@@ -7,10 +7,11 @@ import enum
 db = SQLAlchemy()
 
 class contact_types(enum.Enum):
-    unknown: 1
-    incoming_text: 2
-    incoming_call: 3
-    outgoing_call: 4
+    unknown = 'unknown'
+    incoming_text = 'incoming text'
+    incoming_call = 'incoming call'
+    outgoing_call = 'outgoing call'
+    
 
 class Shelter(db.Model):
     __tablename__ = 'shelters'
