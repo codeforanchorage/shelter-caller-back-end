@@ -2,7 +2,7 @@ import logging
 import os
 import pendulum # datetime with friendlier timezones
 from flask_cors import CORS, cross_origin
-from sqlalchemy import Date, Interval, desc, select, String
+from sqlalchemy import Date, Interval, desc, select, String, distinct
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import func, column, text
@@ -131,13 +131,14 @@ def callhistory(shelterid, page=0):
     pagesize = 15 #records
     offset = pagesize * int(page)
     shelter = Shelter.query.get_or_404(shelterid)
-    
-    calls = db.session.query(Call.time, Call.shelter_id, Call.inputtext, Call.contact_type)\
+    total_calls = db.session.query(func.count(Call.id)).filter_by(shelter_id=shelterid).scalar()
+    print(total_calls)
+    calls = db.session.query(Call)\
             .filter_by(shelter_id = shelterid)\
             .order_by(Call.time.desc())\
             .limit(pagesize).offset(offset)
 
-    result = [row._asdict() for row in calls]
+    result = [row.toDict() for row in calls]
     for row in result: # enums are not json serializanle !?! TODO: see of there's a better way
         row['contact_type'] = row['contact_type'].value
-    return jsonify(shelter=shelter.name, calls=result)
+    return jsonify(shelter=shelter.name, calls=result, total_calls=total_calls, page_size=pagesize)
