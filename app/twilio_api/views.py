@@ -4,7 +4,9 @@ import urllib.request
 import urllib.parse
 import pendulum
 from flask import request, jsonify, Response
+from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import cast
 import re
 import os
 from ..models import Shelter, Call, db, Count, contact_types
@@ -28,26 +30,40 @@ def startcall():
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
     today = pendulum.today(os.environ['PEND_TZ'])
-    uncontacted = Shelter.query.outerjoin(Call, (Call.shelter_id == Shelter.id) & (Call.time > today)).filter(Call.id == None)
+    uncontacted = Shelter.query.outerjoin(Count,  (Count.shelter_id == Shelter.id) & (Count.day == cast(today, Date))).filter((Count.call_id == None) & (Shelter.active == True))
 
     # we have reached all shetlers return success
     if uncontacted.count() == 0:
         return jsonify({"success": True})
 
-    #for row in uncontacted:
-    #    print(row.name, row.phone)
-    # select * from shelters left outer join calls on (calls.shelter_id = shelters.id and calls.time > '2018-11-01') where calls.id IS NULL;
     for shelter in uncontacted:
-        print(f"calling:{shelter.phone}")
+        #print(f"calling:{shelter.phone}")
         id = shelter.id
         route = {"To" : shelter.phone, "From" : "+19073121978", "Parameters": f'{{"id":"{id}"}}'}
         data = urllib.parse.urlencode(route).encode()
 
         with urllib.request.urlopen(flowURL, data) as f:
-            logging.warning("Code: %d" % f.getcode())
+            logging.info("Twilio Return Code: %d" % f.getcode())
     return Response("Not all shelters contacted", status=503 )
 
+@twilio_api.route('/log_failed_call/', methods = ['POST'])
+def logFailedCall():
+    error         = request.form.get('error')
+    fromPhone     = request.form.get('phone')
+    contact_type  = request.form.get('contactType') or 'unknown'
+    shelterID     = request.form.get('shelterID') 
 
+    call = Call(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, error=error)
+    
+    try:
+        db.session.add(call)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+        db.session.commit()
+    except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
+        logging.error(e.orig.args)
+        db.session().rollback()
+        return fail("Could not record call because of database error")
+
+    return  jsonify({"success": True})
 
 @twilio_api.route('/validate_shelter/', methods = ['POST'])
 def validateshelter():

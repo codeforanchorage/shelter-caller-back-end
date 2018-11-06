@@ -42,12 +42,13 @@ class Count(db.Model):
 class Call(db.Model):
     __tablename__ = 'calls'
     id           = db.Column(db.Integer, primary_key=True)
-    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id'), nullable = False)
+    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id'))
     time         = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False)
     inputtext    = db.Column(db.String)
-    bedcount     = db.Column(db.Integer, nullable = False)
+    bedcount     = db.Column(db.Integer)
     from_number  = db.Column(db.String(16)) 
     count        = db.relationship('Count', backref='call')
     contact_type = db.Column(db.Enum(contact_types))
+    error        = db.Column(db.String)
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
