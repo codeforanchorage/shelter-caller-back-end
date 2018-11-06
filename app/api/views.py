@@ -87,12 +87,12 @@ def update_shelter():
 def calls(daysback):
     today = pendulum.today(tz).subtract(days = int(daysback))
     print( today.isoformat(' '))
-    count_calls = db.session.query(Count.shelter_id.label("shelterID"), Count.bedcount, Count.day, Count.call_id, Call.time)\
+    count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.call_id, Call.time)\
                   .join(Call).filter(Count.day == today.isoformat(' '))\
                   .subquery()
 
-    counts = db.session.query(Shelter.name, Shelter.capacity, count_calls)\
-             .outerjoin(count_calls, (Shelter.id == count_calls.c.shelterID))\
+    counts = db.session.query(Shelter.name, Shelter.capacity, Shelter.id, count_calls)\
+             .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
              .order_by(Shelter.name)
 
     result_dict = map(lambda q: q._asdict(), counts)
