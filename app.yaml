@@ -1,0 +1,35 @@
+runtime: python37
+
+env_variables:
+  FORM_SECRET_KEY: 'kjhfuuruh2323'
+  TWILIO_USERNAME: 'AC6f163c4d02441439ceccf8bf753a293e'
+  TWILIO_PASSWORD: '509fc3dde2df87b937c7f7ac9dc03ac0'
+  TWILIO_FLOW_BASE_URL: 'https://studio.twilio.com/v1/Flows/'
+  TWILIO_FLOW_ID: 'FWb68ff38c757c2ebafc3e986c9771b5c2'
+  PEND_TZ: 'America/Anchorage'
+  SQLALCHEMY_DATABASE_URI: 'postgresql+psycopg2://postgres:sO26&mg3O5n7@/postgres?host=/cloudsql/shelter-caller:us-west2:bedcount'
+
+handlers:
+  # Serve static files
+- url: /static
+  static_dir: static
+
+- url: /api/.*
+  script: auto
+
+- url: /twilio/.*
+  script: auto
+
+  # Everything not caught above goes to main app.
+- url: /css
+  static_dir: static/frontend/css
+
+- url: /js
+  static_dir: static/frontend/js
+
+- url: /img
+  static_dir: static/frontend/img
+
+- url: /.*
+  static_files: static/frontend/index.html
+  upload: static/frontend/index.html

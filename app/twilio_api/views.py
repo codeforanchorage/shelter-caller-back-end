@@ -13,8 +13,8 @@ from ..models import Shelter, Call, db, Count, contact_types
 
 tz = os.environ['PEND_TZ'] 
 
-def fail(reason=None):
-    return jsonify({"success": False, "error": reason})
+def fail(reason, tries):
+    return jsonify({"success": False, "error": reason, "tries": tries})
 
 # Twilio flow enpoint requires basic auth with a user/password found in the Twilio account settings
 password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
@@ -48,6 +48,7 @@ def startcall():
 
 @twilio_api.route('/log_failed_call/', methods = ['POST'])
 def logFailedCall():
+    '''Records a failure in the calls table'''
     error         = request.form.get('error')
     fromPhone     = request.form.get('phone')
     contact_type  = request.form.get('contactType') or 'unknown'
@@ -56,13 +57,13 @@ def logFailedCall():
     call = Call(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, error=error)
     
     try:
-        db.session.add(call)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+        db.session.add(call)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
         db.session.commit()
-    except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
+    except IntegrityError as e:             #  calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
         db.session().rollback()
-        return fail("Could not record call because of database error")
-
+        return fail("Could not record call because of database error", 1)
+        
     return  jsonify({"success": True})
 
 @twilio_api.route('/validate_shelter/', methods = ['POST'])
@@ -74,8 +75,9 @@ def validateshelter():
     shelterID = request.form.get('shelterID_retry') or request.form.get('shelterID')
     text      = request.form.get('spokenText')
     fromPhone = request.form.get('phone')
+    tries     = int(request.form.get('tries', 0))
 
-    if not shelterID:
+    if not shelterID: 
         numbers = re.findall('\d+', text)
         if len(numbers) == 1:
             shelterID = numbers[0]
@@ -85,7 +87,7 @@ def validateshelter():
     if shelter:
         return jsonify({"success": True, "id":shelter.id, "login_id":shelter.login_id, "name":shelter.name})
     else:
-        return fail("Could not identify shelter")
+        return fail("Could not identify shelter", tries + 1)
 
 
 @twilio_api.route('/save_count/', methods = ['POST'])
@@ -104,6 +106,7 @@ def collect():
     fromPhone     = request.form.get('phone')
     shelterID     = request.form.get('shelterID') 
     contact_type  = request.form.get('contactType') or 'unknown'
+    tries         = int(request.form.get('tries', 0))
 
     bedcount = None
     # TODO this trusts that shelterID has been validated by an earlier request. 
@@ -131,4 +134,4 @@ def collect():
 
         return  jsonify({"success": True})
 
-    return fail('Required parameters missing')
+    return fail('Required parameters missing', tries + 1)
