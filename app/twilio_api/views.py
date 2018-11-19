@@ -9,12 +9,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast
 import re
 import os
-from ..models import Shelter, Call, db, Count, contact_types
+from ..models import Shelter, db, Count, contact_types, Log
 
 tz = os.environ['PEND_TZ'] 
 
 def fail(reason, tries):
     return jsonify({"success": False, "error": reason, "tries": tries})
+
+def commitLog(log):
+    try:
+        db.session.add(log)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+        db.session.commit()
+    except IntegrityError as e:             #  calls has a foreign key constraint linking it to shelters
+        logging.error(e.orig.args)
+        db.session().rollback()
 
 # Twilio flow enpoint requires basic auth with a user/password found in the Twilio account settings
 password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
@@ -54,10 +62,9 @@ def logFailedCall():
     contact_type  = request.form.get('contactType') or 'unknown'
     shelterID     = request.form.get('shelterID') 
 
-    call = Call(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, error=error)
-    
+    log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, error=error)
     try:
-        db.session.add(call)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+        db.session.add(log)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
         db.session.commit()
     except IntegrityError as e:             #  calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
@@ -72,12 +79,14 @@ def validateshelter():
         If the shelterID does not match a login_id in the shelters table it will fail
         Otherwise it should return info about the shelter, especially the primary key which will be used later
     '''
-    shelterID = request.form.get('shelterID_retry') or request.form.get('shelterID')
-    text      = request.form.get('spokenText')
-    fromPhone = request.form.get('phone')
-    tries     = int(request.form.get('tries', 0))
-
+    shelterID    = request.form.get('shelterID_retry') or request.form.get('shelterID')
+    text         = request.form.get('spokenText')
+    fromPhone    = request.form.get('phone')
+    contact_type = request.form.get('contactType')
+    tries        = int(request.form.get('tries', 0) or 0)
+    input = shelterID
     if not shelterID: 
+        input = text
         numbers = re.findall('\d+', text)
         if len(numbers) == 1:
             shelterID = numbers[0]
@@ -85,8 +94,12 @@ def validateshelter():
     shelter = Shelter.query.filter_by(login_id=shelterID).first()
 
     if shelter:
+        log = Log(shelter_id=shelter.id, from_number=fromPhone, contact_type=contact_type, input_text=input, parsed_text=shelterID, action="validate_shelter")
+        commitLog(log)
         return jsonify({"success": True, "id":shelter.id, "login_id":shelter.login_id, "name":shelter.name})
     else:
+        log = Log(from_number=fromPhone, contact_type=contact_type, input_text=input, parsed_text=shelterID, error="invalid shelter id", action="validate_shelter")
+        commitLog(log)
         return fail("Could not identify shelter", tries + 1)
 
 
@@ -106,7 +119,7 @@ def collect():
     fromPhone     = request.form.get('phone')
     shelterID     = request.form.get('shelterID') 
     contact_type  = request.form.get('contactType') or 'unknown'
-    tries         = int(request.form.get('tries', 0))
+    tries         = int(request.form.get('tries', 0) or 0)
 
     bedcount = None
     # TODO this trusts that shelterID has been validated by an earlier request. 
@@ -117,21 +130,30 @@ def collect():
         input = text
         if len(numbers) == 1:
             bedcount = numbers[0]
-    if bedcount and bedcount.isdigit() and shelterID:
-        logging.warn("%s beds from %s: %s" % (bedcount, shelterID, fromPhone))
-        
+    if bedcount and bedcount.isdigit() and shelterID:        
         today = pendulum.today(os.environ['PEND_TZ'])
         
-        call = Call(shelter_id=shelterID, bedcount=bedcount, inputtext=input, from_number=fromPhone, contact_type=contact_type)
-        count = Count(call = call, shelter_id=shelterID, bedcount=bedcount, day=today.isoformat(' '))
+        count = Count(shelter_id=shelterID, bedcount=bedcount, day=today.isoformat(' '))
+
+        log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=bedcount)
+
         try:
             db.session.merge(count)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+            db.session.add(log)
             db.session.commit()
         except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
             logging.error(e.orig.args)
             db.session().rollback()
-            return fail("Could not record call because of database error")
+            return fail("Could not record call because of database error", tries + 1)
 
         return  jsonify({"success": True})
+
+    log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, error="bad input",  action="save_count", parsed_text=bedcount)
+    try:
+        db.session.add(log)
+        db.session.commit()
+    except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
+        logging.error(e.orig.args)
+        db.session().rollback()
 
     return fail('Required parameters missing', tries + 1)

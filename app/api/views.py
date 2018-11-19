@@ -10,7 +10,7 @@ from sqlalchemy.sql.expression import cast, true
 from . import api
 from flask import request, jsonify
 from .forms import newShelterForm
-from ..models import db, Shelter, Call, Count, contact_types
+from ..models import db, Shelter, Count, Log, contact_types
 
 tz = os.environ['PEND_TZ'] 
 
@@ -81,14 +81,16 @@ def update_shelter():
 ####  Calls   ####
 ##################
 
-@api.route('/calls/', methods=['GET'], defaults = {'daysback': 0})
-@api.route('/calls/<daysback>', methods=['GET'])
+@api.route('/counts/', methods=['GET'], defaults = {'daysback': 0})
+@api.route('/counts/<daysback>', methods=['GET'])
 @cross_origin()
-def calls(daysback):
+def counts(daysback):
     today = pendulum.today(tz).subtract(days = int(daysback))
     print( today.isoformat(' '))
-    count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.call_id, Call.time)\
-                  .join(Call).filter(Count.day == today.isoformat(' '))\
+
+    # add Count.time back when in DB
+    count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.time)\
+                  .filter(Count.day == today.isoformat(' '))\
                   .subquery()
 
     counts = db.session.query(Shelter.name, Shelter.capacity, Shelter.id, count_calls)\
@@ -124,21 +126,21 @@ def counthistory(page):
     return jsonify(results)
 
 
-@api.route('/callhistory/<shelterid>/', methods=['GET'])
-@api.route('/callhistory/<shelterid>/<page>/', methods=['GET'])
+@api.route('/logs/<shelterid>/', methods=['GET'])
+@api.route('/logs/<shelterid>/<page>/', methods=['GET'])
 @cross_origin()
-def callhistory(shelterid, page=0):
+def logs(shelterid, page=0):
     pagesize = 15 #records
     offset = pagesize * int(page)
     shelter = Shelter.query.get_or_404(shelterid)
-    total_calls = db.session.query(func.count(Call.id)).filter_by(shelter_id=shelterid).scalar()
+    total_calls = db.session.query(func.count(Log.id)).filter_by(shelter_id=shelterid).scalar()
     print(total_calls)
-    calls = db.session.query(Call)\
+    logs = db.session.query(Log)\
             .filter_by(shelter_id = shelterid)\
-            .order_by(Call.time.desc())\
+            .order_by(Log.time.desc())\
             .limit(pagesize).offset(offset)
 
-    result = [row.toDict() for row in calls]
-    for row in result: # enums are not json serializanle !?! TODO: see of there's a better way
-        row['contact_type'] = row['contact_type'].value
-    return jsonify(shelter=shelter.name, calls=result, total_calls=total_calls, page_size=pagesize)
+    result = [row.toDict() for row in logs]
+   # for row in result: # enums are not json serializanle !?! TODO: see of there's a better way
+   #     row['contact_type'] = row['contact_type'].value
+    return jsonify(shelter=shelter.name, logs=result, total_calls=total_calls, page_size=pagesize)

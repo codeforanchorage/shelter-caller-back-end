@@ -21,7 +21,7 @@ class Shelter(db.Model):
     capacity  = db.Column(db.Integer)
     lat       = db.Column(db.Float)
     lon       = db.Column(db.Float)
-    calls     = db.relationship('Call', backref='shelter')
+    logs      = db.relationship('Log', backref='shelter')
     counts    = db.relationship('Count', backref='shelter')
     phone     = db.Column(db.String(16), unique=True)
     active    = db.Column(db.Boolean, server_default="TRUE", nullable=False)
@@ -35,20 +35,20 @@ class Count(db.Model):
     bedcount   = db.Column(db.Integer, nullable=False)
     day        = db.Column(db.Date, primary_key=True)
     shelter_id = db.Column(db.Integer, db.ForeignKey('shelters.id'), primary_key=True)
-    call_id    = db.Column(db.Integer, db.ForeignKey('calls.id'), nullable=False)
+    time       = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False)
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
 
-class Call(db.Model):
-    __tablename__ = 'calls'
+class Log(db.Model):
+    __tablename__ = 'logs'
     id           = db.Column(db.Integer, primary_key=True)
-    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id'))
     time         = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False)
-    inputtext    = db.Column(db.String)
-    bedcount     = db.Column(db.Integer)
+    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id'))
     from_number  = db.Column(db.String(16)) 
-    count        = db.relationship('Count', backref='call')
-    contact_type = db.Column(db.Enum(contact_types))
+    input_text   = db.Column(db.String)
+    parsed_text  = db.Column(db.String)
+    contact_type = db.Column(db.String)
+    action       = db.Column(db.String)
     error        = db.Column(db.String)
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
