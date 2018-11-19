@@ -66,7 +66,7 @@ def logFailedCall():
     try:
         db.session.add(log)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
         db.session.commit()
-    except IntegrityError as e:             #  calls has a foreign key constraint linking it to shelters
+    except IntegrityError as e:            #  calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
         db.session().rollback()
         return fail("Could not record call because of database error", 1)
@@ -85,11 +85,13 @@ def validateshelter():
     contact_type = request.form.get('contactType')
     tries        = int(request.form.get('tries', 0) or 0)
     input = shelterID
+ 
     if not shelterID: 
         input = text
-        numbers = re.findall('\d+', text)
+        numbers = re.findall('[\d|\s]+', text)
+        # spoken text may showup with spaces such as "1 2 1 3 "
         if len(numbers) == 1:
-            shelterID = numbers[0]
+            shelterID = numbers[0].replace(" ", "")
     
     shelter = Shelter.query.filter_by(login_id=shelterID).first()
 

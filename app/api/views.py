@@ -62,11 +62,8 @@ def update_shelter():
     shelter['login_id'] = form.login_id.data
     shelter['capacity'] = form.capacity.data
     shelter['active']   = form.active.data
+   
     shelter = Shelter(**shelter)
-    #form = newShelterForm()
-    
-    #shelter = Shelter.query.get_or_404(form.id.data)
-    #form.populate_obj(shelter)
     
     try:
         shelter = db.session.merge(shelter)
@@ -78,17 +75,17 @@ def update_shelter():
     return jsonify({"result": shelter.toDict()})
    
 ##################
-####  Calls   ####
+####  Counts  ####
 ##################
 
 @api.route('/counts/', methods=['GET'], defaults = {'daysback': 0})
 @api.route('/counts/<daysback>', methods=['GET'])
 @cross_origin()
 def counts(daysback):
+    ''' Results the lastest counts per shelter '''
     today = pendulum.today(tz).subtract(days = int(daysback))
     print( today.isoformat(' '))
 
-    # add Count.time back when in DB
     count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.time)\
                   .filter(Count.day == today.isoformat(' '))\
                   .subquery()
@@ -105,6 +102,7 @@ def counts(daysback):
 @api.route('/counthistory/<page>/', methods=['GET'])
 @cross_origin()
 def counthistory(page):
+    ''' Final count history for all shelters. Used for chart showing counts over time '''
     pagesize = 14 # days
     daysback = int(page) * pagesize + pagesize - 1
 
@@ -130,6 +128,7 @@ def counthistory(page):
 @api.route('/logs/<shelterid>/<page>/', methods=['GET'])
 @cross_origin()
 def logs(shelterid, page=0):
+    '''Provives a list of logs for a particular shelter'''
     pagesize = 15 #records
     offset = pagesize * int(page)
     shelter = Shelter.query.get_or_404(shelterid)
@@ -141,6 +140,5 @@ def logs(shelterid, page=0):
             .limit(pagesize).offset(offset)
 
     result = [row.toDict() for row in logs]
-   # for row in result: # enums are not json serializanle !?! TODO: see of there's a better way
-   #     row['contact_type'] = row['contact_type'].value
+
     return jsonify(shelter=shelter.name, logs=result, total_calls=total_calls, page_size=pagesize)
