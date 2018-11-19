@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast
 import re
 import os
-from ..models import Shelter, db, Count, contact_types, Log
+from ..models import Shelter, db, Count, Log
 
 tz = os.environ['PEND_TZ'] 
 

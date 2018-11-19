@@ -10,7 +10,7 @@ from sqlalchemy.sql.expression import cast, true
 from . import api
 from flask import request, jsonify
 from .forms import newShelterForm
-from ..models import db, Shelter, Count, Log, contact_types
+from ..models import db, Shelter, Count, Log
 
 tz = os.environ['PEND_TZ'] 
 

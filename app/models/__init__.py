@@ -2,16 +2,9 @@ from flask_sqlalchemy import SQLAlchemy
 from collections import OrderedDict
 from sqlalchemy import inspect
 from sqlalchemy.sql import func
-import enum
 
 db = SQLAlchemy()
 
-class contact_types(enum.Enum):
-    unknown = 'unknown'
-    incoming_text = 'incoming text'
-    incoming_call = 'incoming call'
-    outgoing_call = 'outgoing call'
-    
 
 class Shelter(db.Model):
     __tablename__ = 'shelters'
