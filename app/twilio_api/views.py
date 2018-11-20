@@ -20,7 +20,7 @@ def commitLog(log):
     try:
         db.session.add(log)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
         db.session.commit()
-    except IntegrityError as e:             #  calls has a foreign key constraint linking it to shelters
+    except IntegrityError as e:            # calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
         db.session().rollback()
 
