@@ -38,20 +38,26 @@ def startcall():
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
     today = pendulum.today(os.environ['PEND_TZ'])
-    uncontacted = Shelter.query.outerjoin(Count,  (Count.shelter_id == Shelter.id) & (Count.day == cast(today, Date))).filter((Count.call_id == None) & (Shelter.active == True))
+    uncontacted = Shelter.query.outerjoin(Count, (Count.shelter_id == Shelter.id) & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
 
     # we have reached all shetlers return success
     if uncontacted.count() == 0:
         return jsonify({"success": True})
 
     for shelter in uncontacted:
-        #print(f"calling:{shelter.phone}")
+        print(f"calling:{shelter.phone}")
+
         id = shelter.id
         route = {"To" : shelter.phone, "From" : "+19073121978", "Parameters": f'{{"id":"{id}"}}'}
         data = urllib.parse.urlencode(route).encode()
 
         with urllib.request.urlopen(flowURL, data) as f:
             logging.info("Twilio Return Code: %d" % f.getcode())
+
+        log = Log(shelter_id=id, from_number='+19073121978', contact_type='outgoing_call', action="initialize call" )
+        db.session.add(log)
+        db.session.commit()
+
     return Response("Not all shelters contacted", status=503 )
 
 @twilio_api.route('/log_failed_call/', methods = ['POST'])
