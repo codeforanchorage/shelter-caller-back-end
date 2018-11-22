@@ -143,7 +143,7 @@ def collect():
         shelter = Shelter.query.get(int(shelterID))
         count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(' '), time=func.now())
 
-        log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=personcount,)
+        log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=personcount)
 
         try:
             db.session.merge(count)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
