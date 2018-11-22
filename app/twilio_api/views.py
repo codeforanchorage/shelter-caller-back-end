@@ -6,7 +6,7 @@ import pendulum
 from flask import request, jsonify, Response
 from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.sql.expression import cast
+from sqlalchemy.sql.expression import cast, func
 import re
 import os
 from ..models import Shelter, db, Count, Log
@@ -32,7 +32,7 @@ opener = urllib.request.build_opener(handler)
 
 urllib.request.install_opener(opener)
 
-@twilio_api.route('/start_call/', methods = ['POST'])
+@twilio_api.route('/start_call/', methods = ['GET'])
 def startcall():
     ''' Cron calls this end point to start the flow for each number that hasn't been contacted today'''     
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
@@ -122,28 +122,28 @@ def collect():
     # beds will be defined if a user keyed in a number
     # text will be defined if the user said something
 
-    input         = request.form.get('numberOfBeds')
+    input         = request.form.get('numberOfPeople')
     text          = request.form.get('spokenText')
     fromPhone     = request.form.get('phone')
     shelterID     = request.form.get('shelterID') 
     contact_type  = request.form.get('contactType') or 'unknown'
     tries         = int(request.form.get('tries', 0) or 0)
 
-    bedcount = None
+    personcount = None
     # TODO this trusts that shelterID has been validated by an earlier request. 
     if input:
-        bedcount = input
+        personcount = input
     elif text:     # try spoken text, but only if there's a single number in the response
         numbers = re.findall('\d+', text)
         input = text
         if len(numbers) == 1:
-            bedcount = numbers[0]
-    if bedcount and bedcount.isdigit() and shelterID:        
+            personcount = numbers[0]
+    if personcount and personcount.isdigit() and shelterID:        
         today = pendulum.today(os.environ['PEND_TZ'])
-        
-        count = Count(shelter_id=shelterID, bedcount=bedcount, day=today.isoformat(' '))
+        shelter = Shelter.query.get(int(shelterID))
+        count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(' '), time=func.now())
 
-        log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=bedcount)
+        log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=personcount,)
 
         try:
             db.session.merge(count)             # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
@@ -156,7 +156,7 @@ def collect():
 
         return  jsonify({"success": True})
 
-    log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, error="bad input",  action="save_count", parsed_text=bedcount)
+    log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, error="bad input",  action="save_count", parsed_text=personcount)
     try:
         db.session.add(log)
         db.session.commit()

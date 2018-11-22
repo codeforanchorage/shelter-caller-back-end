@@ -1,0 +1,7 @@
+cron:
+- description: "daily call"
+  url: /twilio/start_call/
+  schedule: every day 01:40
+  retry_parameters:
+    min_backoff_seconds: 120
+    max_doublings: 5

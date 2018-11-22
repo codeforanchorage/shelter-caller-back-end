@@ -25,10 +25,11 @@ class Shelter(db.Model):
 
 class Count(db.Model):
     __tablename__ = 'counts'
-    bedcount   = db.Column(db.Integer, nullable=False)
-    day        = db.Column(db.Date, primary_key=True)
-    shelter_id = db.Column(db.Integer, db.ForeignKey('shelters.id'), primary_key=True)
-    time       = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False)
+    bedcount    = db.Column(db.Integer, nullable=False)
+    personcount = db.Column(db.Integer)
+    day         = db.Column(db.Date, primary_key=True)
+    shelter_id  = db.Column(db.Integer, db.ForeignKey('shelters.id'), primary_key=True)
+    time        = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False, server_onupdate=db.func.now())
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
 
