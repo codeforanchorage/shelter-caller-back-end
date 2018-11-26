@@ -22,7 +22,6 @@ tz = os.environ['PEND_TZ']
 ##############
 
 @api.route('/admin_login/', methods = ['POST'])
-@cross_origin()
 def login():
     if not request.is_json:
         return jsonify({"msg": "Missing JSON in request"}), 400
@@ -45,7 +44,6 @@ def login():
 #### SHELTERS ####
 ##################
 @api.route('/shelters/', methods = ['GET', 'POST'])
-@cross_origin()
 @jwt_required
 def get_shelters():
     if get_jwt_identity() != os.environ['ADMIN_USER']:
@@ -55,7 +53,6 @@ def get_shelters():
     return jsonify([s.toDict() for s in shelters])
 
 @api.route('/add_shelters/', methods = ['GET', 'POST'])
-@cross_origin()
 @jwt_required
 def add_shelter():
     if get_jwt_identity() != os.environ['ADMIN_USER']:
@@ -80,7 +77,6 @@ def add_shelter():
     return jsonify({result: shelter.toDict()})
 
 @api.route('/delete_shelter/<shelter_id>', methods = ['GET'])
-@cross_origin()
 @jwt_required
 def delete_shelter(shelter_id):
     if get_jwt_identity() != os.environ['ADMIN_USER']:
@@ -91,7 +87,6 @@ def delete_shelter(shelter_id):
     return jsonify({"result":"success"})
 
 @api.route('/update_shelter/', methods=['POST'])
-@cross_origin()
 @jwt_required
 def update_shelter():
     if get_jwt_identity() != os.environ['ADMIN_USER']:
@@ -123,7 +118,6 @@ def update_shelter():
 
 @api.route('/counts/', methods=['GET'], defaults = {'daysback': 0})
 @api.route('/counts/<daysback>', methods=['GET'])
-@cross_origin()
 @jwt_required
 def counts(daysback):
     ''' Results the lastest counts per shelter '''
@@ -146,7 +140,6 @@ def counts(daysback):
     
 @api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
 @api.route('/counthistory/<page>/', methods=['GET'])
-@cross_origin()
 @jwt_required
 def counthistory(page):
     ''' Final count history for all shelters. Used for chart showing counts over time '''
@@ -176,7 +169,6 @@ def counthistory(page):
 
 @api.route('/logs/<shelterid>/', methods=['GET'])
 @api.route('/logs/<shelterid>/<page>/', methods=['GET'])
-@cross_origin()
 @jwt_required
 def logs(shelterid, page=0):
     '''Provives a list of logs for a particular shelter'''
