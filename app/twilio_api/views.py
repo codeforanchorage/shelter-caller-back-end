@@ -140,6 +140,10 @@ def collect():
             personcount = numbers[0]
     if personcount and personcount.isdigit() and shelterID:        
         today = pendulum.today(os.environ['PEND_TZ'])
+        # set the cutoff where calls count toward the next day
+        if pendulum.now(os.environ['PEND_TZ']) > pendulum.parse("20:00", tz=os.environ['PEND_TZ']):
+            today = today.add(days=1)
+
         shelter = Shelter.query.get(int(shelterID))
         count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(' '), time=func.now())
 

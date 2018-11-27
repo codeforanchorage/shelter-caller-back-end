@@ -4,5 +4,6 @@ cron:
   timezone: "America/Anchorage"
   schedule: every day 17:00
   retry_parameters:
-    min_backoff_seconds: 120
+    min_backoff_seconds: 120.0
+    max_backoff_seconds: 360.0
     max_doublings: 3
