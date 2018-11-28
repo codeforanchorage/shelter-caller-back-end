@@ -141,7 +141,7 @@ def collect():
     if personcount and personcount.isdigit() and shelterID:        
         today = pendulum.today(os.environ['PEND_TZ'])
         # set the cutoff where calls count toward the next day
-        if pendulum.now(os.environ['PEND_TZ']) > pendulum.parse("20:00", tz=os.environ['PEND_TZ']):
+        if pendulum.now(os.environ['PEND_TZ']) > pendulum.parse(os.environ['DAY_CUTOFF'], tz=os.environ['PEND_TZ']):
             today = today.add(days=1)
 
         shelter = Shelter.query.get(int(shelterID))
@@ -158,7 +158,7 @@ def collect():
             db.session().rollback()
             return fail("Could not record call because of database error", tries + 1)
 
-        return  jsonify({"success": True})
+        return  jsonify({"success": True, "count":personcount})
 
     log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, error="bad input",  action="save_count", parsed_text=personcount)
     try:
