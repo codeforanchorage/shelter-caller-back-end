@@ -1,35 +1,35 @@
 from . import twilio_api
+from ..models import Shelter, db, Count, Log
 import logging
+import os
+import pendulum
+import re
 import urllib.request
 import urllib.parse
-import pendulum
 from flask import request, jsonify, Response
 from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast, func
-import re
-import os
-from ..models import Shelter, db, Count, Log
-
-tz = os.environ['PEND_TZ'] 
 
 def fail(reason, tries):
     return jsonify({"success": False, "error": reason, "tries": tries})
 
 def commitLog(log):
     try:
-        db.session.add(log)                # TODO it would be nicer if we could use Postgres's ON CONFLICT…UPDATE
+        db.session.add(log)
         db.session.commit()
-    except IntegrityError as e:            # calls has a foreign key constraint linking it to shelters
+    except IntegrityError as e:
         logging.error(e.orig.args)
         db.session().rollback()
 
-# Twilio flow enpoint requires basic auth with a user/password found in the Twilio account settings
+# Set up basic auth with a user/password for Twilio API
 password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-password_mgr.add_password(None, os.environ['TWILIO_FLOW_BASE_URL'], os.environ['TWILIO_USERNAME'], os.environ['TWILIO_PASSWORD']) 
+password_mgr.add_password(None, 
+                          os.environ['TWILIO_FLOW_BASE_URL'],
+                          os.environ['TWILIO_USERNAME'],
+                          os.environ['TWILIO_PASSWORD']) 
 handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
 opener = urllib.request.build_opener(handler)
-
 urllib.request.install_opener(opener)
 
 @twilio_api.route('/start_call/', methods = ['GET'])
@@ -38,27 +38,33 @@ def startcall():
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
     today = pendulum.today(os.environ['PEND_TZ'])
-    uncontacted = Shelter.query.outerjoin(Count, (Count.shelter_id == Shelter.id) & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
+    uncontacted = Shelter.query.outerjoin(Count, 
+                                         (Count.shelter_id == Shelter.id) 
+                                         & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
 
-    # we have reached all shetlers return success
     if uncontacted.count() == 0:
         return jsonify({"success": True})
 
     for shelter in uncontacted:
-        print(f"calling:{shelter.phone}")
-
         id = shelter.id
-        route = {"To" : shelter.phone, "From" : "+19073121978", "Parameters": f'{{"id":"{id}"}}'}
+        route = {"To": shelter.phone, 
+                 "From": "+19073121978", 
+                 "Parameters": f'{{"id":"{id}"}}'}
+
         data = urllib.parse.urlencode(route).encode()
 
         with urllib.request.urlopen(flowURL, data) as f:
             logging.info("Twilio Return Code: %d" % f.getcode())
 
-        log = Log(shelter_id=id, from_number='+19073121978', contact_type='outgoing_call', action="initialize call" )
+        log = Log(shelter_id=id, 
+                  from_number = '+19073121978',
+                  contact_type = 'outgoing_call',
+                  action = "initialize call" )
+
         db.session.add(log)
         db.session.commit()
 
-    return Response("Not all shelters contacted", status=503 )
+    return Response("Not all shelters contacted", status=449 )
 
 @twilio_api.route('/log_failed_call/', methods = ['POST'])
 def logFailedCall():
@@ -83,7 +89,8 @@ def logFailedCall():
 def validateshelter():
     ''' Allows calls/texts from different phones to identify themselves and report.
         If the shelterID does not match a login_id in the shelters table it will fail
-        Otherwise it should return info about the shelter, especially the primary key which will be used later
+        Otherwise it should return info about the shelter, 
+        especially the primary key which will be used later
     '''
     shelterID    = request.form.get('shelterID_retry') or request.form.get('shelterID')
     text         = request.form.get('spokenText')
@@ -119,8 +126,8 @@ def collect():
     Also mark this shelter as being succesfully contacted
     It will return a json response {"success": [true | false]} depening on whether it understood the user
     '''
-    # beds will be defined if a user keyed in a number
-    # text will be defined if the user said something
+    # numberOfPeople will be defined if a user keyed in a number
+    # spokenText will be defined if the user said something
 
     input         = request.form.get('numberOfPeople')
     text          = request.form.get('spokenText')
@@ -145,6 +152,7 @@ def collect():
             today = today.add(days=1)
 
         shelter = Shelter.query.get(int(shelterID))
+        # TODO handle error if shelter is not found
         count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(' '), time=func.now())
 
         log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=personcount)
