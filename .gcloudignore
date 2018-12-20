@@ -23,3 +23,9 @@ venv/
 
 #migrations
 migrations/
+
+#vscode
+.vscode/
+
+#twilio json 
+twilio_studio/

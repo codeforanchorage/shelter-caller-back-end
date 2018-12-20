@@ -11,6 +11,20 @@ from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast, func
 
+def saytime(pendObj):
+    '''Function to convert times into sayable phrases'''
+    hour = pendObj.hour
+    ampm = "P M" if hour >= 12 else "A M"
+    hour = 12 if hour % 12 == 0 else hour % 12
+    
+    minute = pendObj.minute
+    if minute == 0:
+        minute = "O'clock"
+    elif minute < 10:
+        minute = f"oh {minute}"
+    return f"{hour} {minute} {ampm}"
+
+
 def fail(reason, tries):
     return jsonify({"success": False, "error": reason, "tries": tries})
 
@@ -84,6 +98,23 @@ def logFailedCall():
         return fail("Could not record call because of database error", 1)
         
     return  jsonify({"success": True})
+
+@twilio_api.route('/validate_time/', methods = ['GET'])
+def validate_time():
+    '''The app should only accept input during certain hours. This will return true of false depending 
+       on whether the current time is within the open hours
+    '''
+    start = pendulum.parse(os.environ['OPEN'], tz=os.environ['PEND_TZ']).time()
+    end   = pendulum.parse(os.environ['CLOSED'], tz=os.environ['PEND_TZ']).time()
+    now   = pendulum.now(os.environ['PEND_TZ']).time()
+    openHours_speech = f"between {saytime(start)} and {saytime(end)}"
+    text_hours = f"between {start.format('h:mm A')} and {end.format('h:mm A')}"
+
+    if start < end:
+        return jsonify({"open": start < now < end, "hours": text_hours, "spoken_hours": openHours_speech})
+    else: # time spans midnight
+        return jsonify({"open":  now < end or now > start, "hours": text_hours, "spoken_hours": openHours_speech})
+    
 
 @twilio_api.route('/validate_shelter/', methods = ['POST'])
 def validateshelter():

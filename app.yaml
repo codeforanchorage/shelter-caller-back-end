@@ -8,6 +8,8 @@ env_variables:
   TWILIO_FLOW_ID: 'FWb68ff38c757c2ebafc3e986c9771b5c2'
   PEND_TZ: 'America/Anchorage'
   DAY_CUTOFF: '20:00'
+  OPEN: '20:00'
+  CLOSED: '02:00'
   JWT_KEY: '878dhdjk1'
   SQLALCHEMY_DATABASE_URI: 'postgresql+psycopg2://postgres:sO26&mg3O5n7@/postgres?host=/cloudsql/shelter-caller:us-west2:bedcount'
   ADMIN_USER: 'ShelterAdmin'
