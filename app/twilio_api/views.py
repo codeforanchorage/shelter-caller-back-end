@@ -1,5 +1,6 @@
 from . import twilio_api
 from ..models import Shelter, db, Count, Log
+from ..prefs import Prefs
 import logging
 import os
 import pendulum
@@ -10,6 +11,7 @@ from flask import request, jsonify, Response
 from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast, func
+
 
 def saytime(pendObj):
     '''Function to convert times into sayable phrases'''
@@ -51,7 +53,7 @@ def startcall():
     ''' Cron calls this end point to start the flow for each number that hasn't been contacted today'''     
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
-    today = pendulum.today(os.environ['PEND_TZ'])
+    today = pendulum.today(Prefs['timezone'])
     uncontacted = Shelter.query.outerjoin(Count, 
                                          (Count.shelter_id == Shelter.id) 
                                          & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
@@ -104,17 +106,19 @@ def validate_time():
     '''The app should only accept input during certain hours. This will return true of false depending 
        on whether the current time is within the open hours
     '''
-    start = pendulum.parse(os.environ['OPEN'], tz=os.environ['PEND_TZ']).time()
-    end   = pendulum.parse(os.environ['CLOSED'], tz=os.environ['PEND_TZ']).time()
-    now   = pendulum.now(os.environ['PEND_TZ']).time()
+    start = pendulum.parse(Prefs['open_time'], tz=Prefs['timezone']).time()
+    end   = pendulum.parse(Prefs['close_time'], tz=Prefs['timezone']).time()
+    now   = pendulum.now(Prefs['timezone']).time()
     openHours_speech = f"between {saytime(start)} and {saytime(end)}"
     text_hours = f"between {start.format('h:mm A')} and {end.format('h:mm A')}"
-
-    if start < end:
-        return jsonify({"open": start < now < end, "hours": text_hours, "spoken_hours": openHours_speech})
-    else: # time spans midnight
-        return jsonify({"open":  now < end or now > start, "hours": text_hours, "spoken_hours": openHours_speech})
     
+    if Prefs['enforce_hours']:
+        if start < end:
+            return jsonify({"open": start < now < end, "hours": text_hours, "spoken_hours": openHours_speech})
+        else: # time spans midnight
+            return jsonify({"open":  now < end or now > start, "hours": text_hours, "spoken_hours": openHours_speech})
+    else:
+        return jsonify({"open": True})
 
 @twilio_api.route('/validate_shelter/', methods = ['POST'])
 def validateshelter():
@@ -177,9 +181,9 @@ def collect():
         if len(numbers) == 1:
             personcount = numbers[0]
     if personcount and personcount.isdigit() and shelterID:        
-        today = pendulum.today(os.environ['PEND_TZ'])
+        today = pendulum.today(Prefs['timezone'])
         # set the cutoff where calls count toward the next day
-        if pendulum.now(os.environ['PEND_TZ']) > pendulum.parse(os.environ['DAY_CUTOFF'], tz=os.environ['PEND_TZ']):
+        if pendulum.now(Prefs['timezone']) > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']):
             today = today.add(days=1)
 
         shelter = Shelter.query.get(int(shelterID))

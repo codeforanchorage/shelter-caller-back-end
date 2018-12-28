@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from collections import OrderedDict
 from sqlalchemy import inspect
 from sqlalchemy.sql import func
+import os
 
 db = SQLAlchemy()
 
@@ -44,5 +45,17 @@ class Log(db.Model):
     contact_type = db.Column(db.String)
     action       = db.Column(db.String)
     error        = db.Column(db.String)
+    def toDict(self):
+        return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
+
+class Pref(db.Model):
+    '''Simple DB class intended to be a single row to hold app-specific preferences'''
+    __tablename__ = 'prefs'
+    app_id        = db.Column(db.String, primary_key=True)
+    timezone      = db.Column(db.String)
+    enforce_hours = db.Column(db.Boolean, default=False)
+    open_time     = db.Column(db.String)
+    close_time    = db.Column(db.String)
+    start_day     = db.Column(db.String)
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}

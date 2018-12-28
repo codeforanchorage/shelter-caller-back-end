@@ -1,6 +1,7 @@
 runtime: python37
 
 env_variables:
+  APP_NAME: 'shelter_caller'
   FORM_SECRET_KEY: 'kjhfuuruh2323'
   TWILIO_USERNAME: 'AC6f163c4d02441439ceccf8bf753a293e'
   TWILIO_PASSWORD: '509fc3dde2df87b937c7f7ac9dc03ac0'

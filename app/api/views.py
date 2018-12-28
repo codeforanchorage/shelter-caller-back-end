@@ -8,14 +8,15 @@ from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import func, column, text
 from sqlalchemy.sql.expression import cast, true
 from . import api
+
 from flask import request, jsonify
 from flask_jwt_simple import (
     jwt_required, create_jwt, get_jwt_identity
 )
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log
-
-tz = os.environ['PEND_TZ'] 
+from ..prefs import Prefs
+tz = Prefs['timezone']
 
 ##############
 #### AUTH ####
