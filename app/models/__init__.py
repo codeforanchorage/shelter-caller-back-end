@@ -29,7 +29,7 @@ class Count(db.Model):
     bedcount    = db.Column(db.Integer, nullable=False)
     personcount = db.Column(db.Integer)
     day         = db.Column(db.Date, primary_key=True)
-    shelter_id  = db.Column(db.Integer, db.ForeignKey('shelters.id'), primary_key=True)
+    shelter_id  = db.Column(db.Integer, db.ForeignKey('shelters.id', ondelete='CASCADE'), primary_key=True)
     time        = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False, server_onupdate=db.func.now())
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
@@ -38,7 +38,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
     id           = db.Column(db.Integer, primary_key=True)
     time         = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable = False)
-    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id'))
+    shelter_id   = db.Column(db.Integer, db.ForeignKey('shelters.id', ondelete='CASCADE'))
     from_number  = db.Column(db.String(16)) 
     input_text   = db.Column(db.String)
     parsed_text  = db.Column(db.String)
