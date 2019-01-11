@@ -16,7 +16,6 @@ def create_app(config_name):
     db.init_app(app)
     Prefs.init(app)
 
-    print("Timezone:", prefs.Prefs['timezone'])
     from .prefs import pref_api as pref_api_blueprint
     app.register_blueprint(pref_api_blueprint, url_prefix="/api/prefs")
 
