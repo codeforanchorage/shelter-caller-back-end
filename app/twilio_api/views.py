@@ -183,7 +183,7 @@ def collect():
     if personcount and personcount.isdigit() and shelterID:        
         today = pendulum.today(Prefs['timezone'])
         # set the cutoff where calls count toward the next day
-        if pendulum.now(Prefs['timezone']) > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']):
+        if pendulum.now(Prefs['timezone']).time() > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']).time():
             today = today.add(days=1)
 
         shelter = Shelter.query.get(int(shelterID))
