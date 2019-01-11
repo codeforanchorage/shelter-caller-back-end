@@ -188,7 +188,7 @@ def collect():
 
         shelter = Shelter.query.get(int(shelterID))
         # TODO handle error if shelter is not found
-        count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(' '), time=func.now())
+        count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=today.isoformat(), time=func.now())
 
         log = Log(shelter_id=shelterID, from_number=fromPhone, contact_type=contact_type, input_text=input, action="save_count", parsed_text=personcount)
 
