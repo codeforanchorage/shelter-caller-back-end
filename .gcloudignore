@@ -29,3 +29,6 @@ migrations/
 
 #twilio json 
 twilio_studio/
+
+#tests
+test
