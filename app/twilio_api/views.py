@@ -54,6 +54,9 @@ def startcall():
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
     today = pendulum.today(Prefs['timezone'])
+    if pendulum.now(Prefs['timezone']).time() > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']).time():
+            today = today.add(days=1)
+            
     uncontacted = Shelter.query.outerjoin(Count, 
                                          (Count.shelter_id == Shelter.id) 
                                          & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
