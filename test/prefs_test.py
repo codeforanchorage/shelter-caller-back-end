@@ -75,7 +75,7 @@ def test_prefs_default_DB(prefs_from_DB):
     assert Prefs['timezone'] == db_environ['timezone']
     assert Prefs['start_day'] == db_environ['start_day']
 
-def test_get_defaults(prefs_from_envion):
-    with app.test_request_context('/api/prefs/'):
-        print("done")
-    return True
+#def test_get_defaults(prefs_from_envion):
+#    with app.test_request_context('/api/prefs/'):
+#        print("done")
+#    return True
