@@ -3,7 +3,6 @@ import os
 from flask import request, jsonify, Response
 from flask_jwt_simple import jwt_required, get_jwt_identity
 
-
 @pref_api.route('/', methods = ['GET'])
 @jwt_required
 def pref():
