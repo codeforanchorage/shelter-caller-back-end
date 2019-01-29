@@ -1,0 +1,175 @@
+import pytest
+import json
+from unittest.mock import MagicMock, Mock, patch
+from app import  db
+from app.models import Shelter, Log, Count
+import urllib.request
+import urllib.parse
+
+from . import client, app_with_envion_DB, environ
+
+test_shelter = {
+    "id": 99,
+    'name': "test_shelter",
+    'login_id': '9999',
+    'capacity': 100,
+    'phone': '123-555-5555',
+    'active': True,
+}
+
+test_shelter2 = {
+    "id": 98,
+    'name': "test_shelter_2",
+    'login_id': '1111',
+    'capacity': 100,
+    'phone': '123-222-2222',
+    'active': False,
+}
+
+test_shelter3 = {
+    "id": 97,
+    'name': "test_shelter_3",
+    'login_id': '0000',
+    'capacity': 100,
+    'phone': '123-111-1111',
+    'active': True,
+}
+
+twil_url = environ['TWILIO_FLOW_BASE_URL'] + environ['TWILIO_FLOW_ID'] + '/Executions'
+def getDataRoute(shelter):
+    return  {
+        "To": shelter['phone'], 
+        "From": "+19073121978", 
+        "Parameters": '{"id":"%d"}' % shelter['id']
+        }
+
+@patch('urllib.request.urlopen')
+def test_start_call(mockObj, app_with_envion_DB):
+    '''It should call the url to initiate the Twilio flow with the correct data'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+  
+    mockObj.assert_called_with(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter)).encode())
+
+@patch('urllib.request.urlopen')
+def test_start_call_inactive(mockObj, app_with_envion_DB):
+    '''It should not call the url to initiate the Twilio flow for inactive shelters'''
+    s2 = Shelter(**test_shelter2)
+    db.session.add(s2)
+    db.session.commit()
+
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+  
+    mockObj.assert_not_called()
+
+@patch('urllib.request.urlopen')
+def test_start_call_multiple(mockObj, app_with_envion_DB):
+    '''It should call the url to initiate the Twilio flow with the correct data for each active shelter'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    s3 = Shelter(**test_shelter3)
+    db.session.add(s3)
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+  
+    mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter)).encode())
+    mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter3)).encode())
+
+
+@patch('urllib.request.urlopen')
+def test_log_start_call(mockObj, app_with_envion_DB):
+    '''Outgoing calls should make a log entry'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+    logs = db.session.query(Log).one()
+    
+    assert logs.shelter_id == test_shelter['id']
+    assert logs.action == "initialize call"
+    assert logs.contact_type == "outgoing_call"
+
+@patch('urllib.request.urlopen')
+@patch('pendulum.today')
+def test_start_call_existing(pend_mock, urlopen_mock, app_with_envion_DB):
+    '''It should only initiate calls when an existing count is not in the DB for a given date and shelter id'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    s3 = Shelter(**test_shelter3)
+    db.session.add(s3)
+
+    today = '2019-05-21T22:00:00'
+    pend_mock.return_value = today
+    count = Count(shelter_id=test_shelter['id'], personcount=100, bedcount = 5, day=today, time=today)
+    db.session.add(count)
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+
+    urlopen_mock.assert_called_once_with(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter3)).encode())
+    
+@patch('urllib.request.urlopen')
+@patch('pendulum.today')
+def test_start_call_return_true(pend_mock, urlopen_mock, app_with_envion_DB):
+    '''It should return a true JSON result when there are no shelters to call'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+
+    today = '2019-05-21T22:00:00'
+    pend_mock.return_value = today
+    count = Count(shelter_id=test_shelter['id'], personcount=100, bedcount = 5, day=today, time=today)
+    db.session.add(count)
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+    data = json.loads(rv.data)
+    assert data == {"success": True}
+
+@patch('urllib.request.urlopen')
+def test_start_call_return_false(urlopen_mock, app_with_envion_DB):
+    '''It should return a 449 status code  when there were shelters to call'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+    assert rv.status_code == 449
+
+#### validate_shelter ####
+
+def test_validate_shelter_good(app_with_envion_DB):
+    ''' Should return the shelter data given a known pip '''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    s3 = Shelter(**test_shelter3)
+    db.session.add(s3)
+
+    db.session.commit()
+    data = {'shelterID':test_shelter['login_id']}
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/validate_shelter/', data=data)
+    res = json.loads(rv.data)
+    assert res['success'] == True
+    assert res['id'] == test_shelter['id']
+    assert res['name'] == test_shelter['name']
+
+def test_validate_shelter_good(app_with_envion_DB):
+    ''' Should return the shelter data given a known pip '''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    data = {'shelterID':'89898198'}
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/validate_shelter/', data=data)
+    res = json.loads(rv.data)
+    assert res['success'] == False

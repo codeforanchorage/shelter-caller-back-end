@@ -5,7 +5,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = "hjhfhj2387f"
     JWT_SECRET_KEY = os.environ['JWT_KEY']
-    SQLALCHEMY_DATABASE_URI = 'postgresql+psycopg2://localhost/shelter_caller_test'# os.environ['SQLALCHEMY_DATABASE_URI']
+    SQLALCHEMY_DATABASE_URI = os.environ['SQLALCHEMY_DATABASE_URI']
     @staticmethod
     def init_app(app):
         pass
