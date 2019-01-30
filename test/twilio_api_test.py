@@ -187,7 +187,7 @@ def test_validate_shelter_good(app_with_envion_DB):
 ####  validate_time  ####
 #########################
 
-@pytest.mark.current
+
 @patch('pendulum.now')
 def test_validate_time_good(pend_mock, app_with_envion_DB):
     ''' If the current time is within the open-close interval it should return open = true '''
@@ -200,7 +200,7 @@ def test_validate_time_good(pend_mock, app_with_envion_DB):
     res = json.loads(rv.data)
     assert res['open'] == True
 
-@pytest.mark.current
+
 @patch('pendulum.now')
 def test_validate_time_early(pend_mock, app_with_envion_DB):
     ''' If the current time is not within the open-close interval it should return open = false '''
@@ -213,7 +213,7 @@ def test_validate_time_early(pend_mock, app_with_envion_DB):
     res = json.loads(rv.data)
     assert res['open'] == False
 
-@pytest.mark.current
+
 @patch('pendulum.now')
 def test_validate_time_late(pend_mock, app_with_envion_DB):
     ''' If the current time is not within the open-close interval it should return open = false '''
@@ -226,7 +226,7 @@ def test_validate_time_late(pend_mock, app_with_envion_DB):
     res = json.loads(rv.data)
     assert res['open'] == False
 
-@pytest.mark.current
+
 @patch('pendulum.now')
 def test_validate_time_no_enforce(pend_mock, app_with_envion_DB):
     ''' It should not enforce hours when enforce flag is false'''
@@ -238,3 +238,93 @@ def test_validate_time_no_enforce(pend_mock, app_with_envion_DB):
     rv = client.get('/twilio/validate_time/')
     res = json.loads(rv.data)
     assert res['open'] == True
+
+
+########################
+####   save_count   ####
+########################
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_good(pend_mock, app_with_envion_DB):
+    ''' Should add a row to the count table with day value set to tomorrow and correct counts'''
+    date = '2019-05-20'
+    time = pendulum.parse(date + 'T' + Prefs['start_day'],  tz=Prefs['timezone']).add(minutes = 1)
+    pend_mock.return_value = time
+
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    data = {'numberOfPeople':90, 'shelterID': test_shelter['id']  }
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/save_count/', data=data)
+    res = json.loads(rv.data)
+    assert res['success'] == True
+    count = db.session.query(Count).one()
+    assert count.shelter_id == test_shelter['id']
+    assert str(count.day) == '2019-05-21'
+    assert count.personcount == 90
+    assert count.bedcount == test_shelter['capacity'] - 90
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_early(pend_mock, app_with_envion_DB):
+    ''' Should add a row to the count table with day value set today if before the cuttoff '''
+    date = '2019-05-20'
+    time = pendulum.parse(date + 'T' + Prefs['start_day'],  tz=Prefs['timezone']).subtract(minutes = 1)
+    pend_mock.return_value = time
+
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    data = {'numberOfPeople':90, 'shelterID': test_shelter['id']  }
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/save_count/', data=data)
+    res = json.loads(rv.data)
+    count = db.session.query(Count).one()
+    assert count.shelter_id == test_shelter['id']
+    assert str(count.day) == date
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_after_midnight(pend_mock, app_with_envion_DB):
+    ''' Should set correct day (the current day) when call happens after midnight '''
+    Prefs['start_day'] = "23:00"
+    date = '2019-05-20'
+    time = pendulum.parse(date + 'T' + '01:00',  tz=Prefs['timezone'])
+    pend_mock.return_value = time
+
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    data = {'numberOfPeople':90, 'shelterID': test_shelter['id']  }
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/save_count/', data=data)
+    res = json.loads(rv.data)
+    count = db.session.query(Count).one()
+    assert str(count.day) == date
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_log(pend_mock, app_with_envion_DB):
+    ''' Should enter a row in the log when saving a count '''
+    date = '2019-05-20'
+    phone = '123-555-5555'
+    time = pendulum.parse(date + 'T' + '01:00',  tz=Prefs['timezone'])
+    pend_mock.return_value = time
+
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    db.session.commit()
+    data = {'numberOfPeople':80, 'shelterID': test_shelter['id'], 'phone': phone  }
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/save_count/', data=data)
+    res = json.loads(rv.data)
+    log = db.session.query(Log).one()
+    assert log.shelter_id == test_shelter['id']
+    assert log.from_number == phone
+    assert log.parsed_text == '80'
