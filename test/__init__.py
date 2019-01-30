@@ -6,9 +6,9 @@ from app.models import Pref
 environ = {
     "APP_NAME": "test_app",
     "PEND_TZ": "America/Anchorage",
-    "OPEN": "02:00",
-    "CLOSED": "12:00",
-    "DAY_CUTOFF": "02:00",
+    "OPEN": "20:00",
+    "CLOSED": "03:00",
+    "DAY_CUTOFF": "22:00",
     "ADMIN_USER": "test_admin",
     "ADMIN_PW": "test_admin_pw",
     "TWILIO_FLOW_BASE_URL": 'https://twilio_test.com/v1/Flows/',
@@ -19,9 +19,9 @@ db_environ = {
     "app_id":  environ["APP_NAME"],    
     "timezone": "America/Anchorage",
     "enforce_hours": False, 
-    "open_time": "12:00",
-    "close_time": "18:00",
-    "start_day": "12:00" 
+    "open_time": "22:00",
+    "close_time": "02:00",
+    "start_day": "22:00" 
 }
 @pytest.fixture
 def client():

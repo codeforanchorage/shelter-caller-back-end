@@ -1,7 +1,9 @@
 import pytest
 import json
+import pendulum
 from unittest.mock import MagicMock, Mock, patch
-from app import  db
+from app import db
+from app.prefs import Prefs
 from app.models import Shelter, Log, Count
 import urllib.request
 import urllib.parse
@@ -17,9 +19,9 @@ test_shelter = {
     'active': True,
 }
 
-test_shelter2 = {
+inactive_shelter = {
     "id": 98,
-    'name': "test_shelter_2",
+    'name': "inactive shelter",
     'login_id': '1111',
     'capacity': 100,
     'phone': '123-222-2222',
@@ -37,11 +39,12 @@ test_shelter3 = {
 
 twil_url = environ['TWILIO_FLOW_BASE_URL'] + environ['TWILIO_FLOW_ID'] + '/Executions'
 def getDataRoute(shelter):
-    return  {
-        "To": shelter['phone'], 
-        "From": "+19073121978", 
-        "Parameters": '{"id":"%d"}' % shelter['id']
-        }
+    return  { "To": shelter['phone'],  "From": "+19073121978", "Parameters": '{"id":"%d"}' % shelter['id']}
+
+
+##########################
+####    start_call    ####
+##########################
 
 @patch('urllib.request.urlopen')
 def test_start_call(mockObj, app_with_envion_DB):
@@ -58,7 +61,7 @@ def test_start_call(mockObj, app_with_envion_DB):
 @patch('urllib.request.urlopen')
 def test_start_call_inactive(mockObj, app_with_envion_DB):
     '''It should not call the url to initiate the Twilio flow for inactive shelters'''
-    s2 = Shelter(**test_shelter2)
+    s2 = Shelter(**inactive_shelter)
     db.session.add(s2)
     db.session.commit()
 
@@ -72,12 +75,15 @@ def test_start_call_multiple(mockObj, app_with_envion_DB):
     '''It should call the url to initiate the Twilio flow with the correct data for each active shelter'''
     s = Shelter(**test_shelter)
     db.session.add(s)
+    s2 = Shelter(**inactive_shelter)
+    db.session.add(s2)
     s3 = Shelter(**test_shelter3)
     db.session.add(s3)
     db.session.commit()
     client = app_with_envion_DB.test_client()
     rv = client.get('/twilio/start_call/')
   
+    assert mockObj.call_count == 2 
     mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter)).encode())
     mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter3)).encode())
 
@@ -135,7 +141,7 @@ def test_start_call_return_true(pend_mock, urlopen_mock, app_with_envion_DB):
 
 @patch('urllib.request.urlopen')
 def test_start_call_return_false(urlopen_mock, app_with_envion_DB):
-    '''It should return a 449 status code  when there were shelters to call'''
+    '''It should return a 449 status code when there were shelters to call'''
     s = Shelter(**test_shelter)
     db.session.add(s)
     db.session.commit()
@@ -143,7 +149,9 @@ def test_start_call_return_false(urlopen_mock, app_with_envion_DB):
     rv = client.get('/twilio/start_call/')
     assert rv.status_code == 449
 
+##########################
 #### validate_shelter ####
+##########################
 
 def test_validate_shelter_good(app_with_envion_DB):
     ''' Should return the shelter data given a known pip '''
@@ -173,3 +181,60 @@ def test_validate_shelter_good(app_with_envion_DB):
     rv = client.post('/twilio/validate_shelter/', data=data)
     res = json.loads(rv.data)
     assert res['success'] == False
+
+
+#########################
+####  validate_time  ####
+#########################
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_good(pend_mock, app_with_envion_DB):
+    ''' If the current time is within the open-close interval it should return open = true '''
+    now = pendulum.parse(Prefs['open_time'], tz=Prefs['timezone']).add(minutes = 1)
+    pend_mock.return_value = now
+    Prefs['enforce_hours'] = True
+    client = app_with_envion_DB.test_client()
+
+    rv = client.get('/twilio/validate_time/')
+    res = json.loads(rv.data)
+    assert res['open'] == True
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_early(pend_mock, app_with_envion_DB):
+    ''' If the current time is not within the open-close interval it should return open = false '''
+    now = pendulum.parse(Prefs['open_time'], tz=Prefs['timezone']).subtract(minutes = 1)
+    pend_mock.return_value = now
+    Prefs['enforce_hours'] = True
+    client = app_with_envion_DB.test_client()
+
+    rv = client.get('/twilio/validate_time/')
+    res = json.loads(rv.data)
+    assert res['open'] == False
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_late(pend_mock, app_with_envion_DB):
+    ''' If the current time is not within the open-close interval it should return open = false '''
+    now = pendulum.parse(Prefs['close_time'], tz=Prefs['timezone']).add(minutes = 1)
+    pend_mock.return_value = now
+    Prefs['enforce_hours'] = True
+    client = app_with_envion_DB.test_client()
+
+    rv = client.get('/twilio/validate_time/')
+    res = json.loads(rv.data)
+    assert res['open'] == False
+
+@pytest.mark.current
+@patch('pendulum.now')
+def test_validate_time_no_enforce(pend_mock, app_with_envion_DB):
+    ''' It should not enforce hours when enforce flag is false'''
+    now = pendulum.parse(Prefs['close_time'], tz=Prefs['timezone']).add(minutes = 1)
+    pend_mock.return_value = now
+    Prefs['enforce_hours'] = False
+    client = app_with_envion_DB.test_client()
+
+    rv = client.get('/twilio/validate_time/')
+    res = json.loads(rv.data)
+    assert res['open'] == True
