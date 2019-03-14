@@ -249,6 +249,7 @@ def test_validate_time_no_enforce(pend_mock, app_with_envion_DB):
 def test_validate_time_good(pend_mock, app_with_envion_DB):
     ''' Before midnight it should add a row to the count table with day value set to tomorrow and correct counts'''
     date = '2019-05-20'
+    tomorrow = '2019-05-21'
     time = pendulum.parse(date + 'T' + Prefs['start_day'],  tz=Prefs['timezone']).add(minutes = 1)
     pend_mock.return_value = time
 
@@ -263,9 +264,9 @@ def test_validate_time_good(pend_mock, app_with_envion_DB):
     assert res['success'] == True
     count = db.session.query(Count).one()
     assert count.shelter_id == test_shelter['id']
-    assert str(count.day) == '2019-05-21'
+    assert str(count.day) == tomorrow
     assert count.personcount == data['numberOfPeople']
-    assert count.bedcount == test_shelter['capacity'] - 90
+    assert count.bedcount == test_shelter['capacity'] - data['numberOfPeople']
 
 @pytest.mark.current
 @patch('pendulum.now')
@@ -327,4 +328,4 @@ def test_validate_time_log(pend_mock, app_with_envion_DB):
     log = db.session.query(Log).one()
     assert log.shelter_id == test_shelter['id']
     assert log.from_number == phone
-    assert log.parsed_text == '80'
+    assert log.parsed_text == str(data['numberOfPeople'])
