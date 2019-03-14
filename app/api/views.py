@@ -157,10 +157,13 @@ def counthistory(page):
     today = pendulum.today(tz).subtract(days = (int(page) * pagesize))
     backthen = pendulum.today(tz).subtract(days=daysback)
     
-    date_list = func.generate_series(backthen, today, '1 day').alias('gen_day')
+    date_list = func.generate_series(cast(backthen.to_date_string(), Date), cast(today.to_date_string(), Date), '1 day').alias('gen_day')
+    logging.warning(today)
+    logging.warning(backthen)
+
     time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.bedcount).label('data'))\
                   .join(date_list, true())\
-                  .outerjoin(Count, (Count.day == cast(column('gen_day'), Date)) &\
+                  .outerjoin(Count, (Count.day == column('gen_day')) &\
                                     (Count.shelter_id == Shelter.id))\
                   .group_by(Shelter.name)\
                   .order_by(Shelter.name)
