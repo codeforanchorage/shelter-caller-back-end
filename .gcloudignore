@@ -31,4 +31,4 @@ migrations/
 twilio_studio/
 
 #tests
-test
+test/

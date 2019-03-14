@@ -16,7 +16,7 @@ from flask_jwt_simple import (
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log
 from ..prefs import Prefs
-tz = Prefs['timezone']
+#tz = Prefs['timezone']
 
 ##############
 #### AUTH ####
@@ -122,6 +122,8 @@ def update_shelter():
 @jwt_required
 def counts(daysback):
     ''' Results the lastest counts per shelter '''
+    tz = Prefs['timezone']
+
     if get_jwt_identity() != os.environ['ADMIN_USER']:
         return jsonify(msg="Permission denied"), 403
 
@@ -144,6 +146,8 @@ def counts(daysback):
 @jwt_required
 def counthistory(page):
     ''' Final count history for all shelters. Used for chart showing counts over time '''
+    tz = Prefs['timezone']
+
     if get_jwt_identity() != os.environ['ADMIN_USER']:
         return jsonify(msg="Permission denied"), 403
 

@@ -6,3 +6,6 @@ lib/
 
 # Vue will use this for dist directory
 /static/frontend/
+
+# test caches
+.pytest_cache/

@@ -15,6 +15,7 @@ class DevelopmentConfig(Config):
     #SQLALCHEMY_ECHO = True
 
 class TestingConfig(Config):
+    SQLALCHEMY_DATABASE_URI = 'postgresql+psycopg2://localhost/shelter_caller_test'
     TESTING = True
 
 class ProductionConfig(Config):
