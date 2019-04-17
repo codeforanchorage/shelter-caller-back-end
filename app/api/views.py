@@ -14,7 +14,7 @@ from flask_jwt_simple import (
     jwt_required, create_jwt, get_jwt_identity
 )
 from .forms import newShelterForm
-from ..models import db, Shelter, Count, Log
+from ..models import db, Shelter, Count, Log, User, Role
 from ..prefs import Prefs
 #tz = Prefs['timezone']
 
@@ -34,8 +34,9 @@ def login():
         return jsonify({"msg": "Missing username parameter"}), 400
     if not password:
         return jsonify({"msg": "Missing password parameter"}), 400
-
-    if user != os.environ['ADMIN_USER'] or password != os.environ['ADMIN_PW']:
+ 
+    db_user = User.query.filter_by(username=user).first()
+    if not db_user or db_user.password != password:
         return jsonify({"msg": "Bad username or password"}), 401
 
     ret = {'jwt': create_jwt(identity=user)}

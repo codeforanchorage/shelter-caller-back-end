@@ -59,3 +59,26 @@ class Pref(db.Model):
     start_day     = db.Column(db.String)
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
+
+class User(db.Model):
+    '''Users for authentication'''
+    __tablename__ = 'users'
+    id            = db.Column(db.Integer, primary_key=True)
+    username      = db.Column(db.String(50), nullable=False, unique=True)
+    password      = db.Column(db.String(255), nullable=False)
+    is_active     = db.Column(db.Boolean, server_default="TRUE", nullable=False),
+    first_name    = db.Column(db.String(50), nullable=False)
+    last_name     = db.Column(db.String(50), nullable=False)
+    roles         = db.relationship('Role', secondary='user_roles')
+
+class Role(db.Model):
+    '''User Roles'''
+    __tablename__ = 'roles'
+    id            = db.Column(db.Integer(), primary_key=True)
+    name          = db.Column(db.String(50), unique=True)
+
+class UserRoles(db.Model):
+    __tablename__ = 'user_roles'
+    id            = db.Column(db.Integer(), primary_key=True)
+    user_id       = db.Column(db.Integer(), db.ForeignKey('users.id', ondelete='CASCADE'))
+    role_id       = db.Column(db.Integer(), db.ForeignKey('roles.id', ondelete='CASCADE'))
