@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import wraps
 import pendulum # datetime with friendlier timezones
 from flask_cors import CORS, cross_origin
 from sqlalchemy import Date, Interval, desc, select, String, distinct
@@ -21,6 +22,20 @@ from ..prefs import Prefs
 ##############
 #### AUTH ####
 ##############
+def role_required(allowed_roles):
+    ''' Helper decorator for routes to check that a user is in the passed in list of allowed_roles'''
+    # Make sure the decorator goes after @jwt_required to we have the token available
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user = get_jwt_identity()
+            db_user = User.query.filter_by(username=user).first()
+            for role in db_user.roles:
+                if role.name in allowed_roles:
+                    return f(*args, **kwargs)
+            return jsonify(msg="Permission denied"), 403
+        return decorated_function
+    return decorator
 
 @api.route('/admin_login/', methods = ['POST'])
 def login():
@@ -38,18 +53,19 @@ def login():
     db_user = User.query.filter_by(username=user).first()
     if not db_user or db_user.password != password:
         return jsonify({"msg": "Bad username or password"}), 401
-
-    ret = {'jwt': create_jwt(identity=user)}
-    return jsonify(ret), 200
+    roles = [role.name for role in db_user.roles]
+    #ret = {'jwt': create_jwt(identity=user)}
+    return jsonify(jwt=create_jwt(identity=user), roles=roles), 200
 
 ##################
 #### SHELTERS ####
 ##################
 @api.route('/shelters/', methods = ['GET', 'POST'])
 @jwt_required
+@role_required(['admin'])
 def get_shelters():
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
+    #if get_jwt_identity() != os.environ['ADMIN_USER']:
+    #    return jsonify(msg="Permission denied"), 403
 
     shelters = Shelter.query.order_by('name').all()
     return jsonify([s.toDict() for s in shelters])
@@ -57,9 +73,6 @@ def get_shelters():
 @api.route('/add_shelters/', methods = ['GET', 'POST'])
 @jwt_required
 def add_shelter():
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
-
     form = newShelterForm()
     if form.validate_on_submit():
         shelter = {}
@@ -80,20 +93,16 @@ def add_shelter():
 
 @api.route('/delete_shelter/<shelter_id>', methods = ['GET'])
 @jwt_required
+@role_required(['admin'])
 def delete_shelter(shelter_id):
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
-
     Shelter.query.filter_by(id=shelter_id).delete()
     db.session.commit()
     return jsonify({"result":"success"})
 
 @api.route('/update_shelter/', methods=['POST'])
 @jwt_required
+@role_required(['admin'])
 def update_shelter():
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
-
     form = newShelterForm()
     shelter = {}
     shelter['id']       = form.id.data
@@ -121,12 +130,10 @@ def update_shelter():
 @api.route('/counts/', methods=['GET'], defaults = {'daysback': 0})
 @api.route('/counts/<daysback>', methods=['GET'])
 @jwt_required
+@role_required(['admin', 'visitor'])
 def counts(daysback):
     ''' Results the lastest counts per shelter '''
     tz = Prefs['timezone']
-
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
 
     today = pendulum.today(tz).subtract(days = int(daysback))
 
@@ -145,12 +152,10 @@ def counts(daysback):
 @api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
 @api.route('/counthistory/<page>/', methods=['GET'])
 @jwt_required
+@role_required(['admin', 'visitor'])
 def counthistory(page):
     ''' Final count history for all shelters. Used for chart showing counts over time '''
     tz = Prefs['timezone']
-
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
 
     pagesize = 14 # days
     daysback = int(page) * pagesize + pagesize - 1
@@ -159,8 +164,6 @@ def counthistory(page):
     backthen = pendulum.today(tz).subtract(days=daysback)
     
     date_list = func.generate_series(cast(backthen.to_date_string(), Date), cast(today.to_date_string(), Date), '1 day').alias('gen_day')
-    logging.warning(today)
-    logging.warning(backthen)
 
     time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.bedcount).label('data'))\
                   .join(date_list, true())\
@@ -179,11 +182,9 @@ def counthistory(page):
 @api.route('/logs/<shelterid>/', methods=['GET'])
 @api.route('/logs/<shelterid>/<page>/', methods=['GET'])
 @jwt_required
+@role_required(['admin'])
 def logs(shelterid, page=0):
     '''Provives a list of logs for a particular shelter'''
-    if get_jwt_identity() != os.environ['ADMIN_USER']:
-        return jsonify(msg="Permission denied"), 403
-
     pagesize = 15 #records
     offset = pagesize * int(page)
     shelter = Shelter.query.get_or_404(shelterid)
