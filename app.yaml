@@ -3,10 +3,10 @@ runtime: python37
 env_variables:
   APP_NAME: 'shelter_caller'
   FORM_SECRET_KEY: 'kjhfuuruh2323'
-  TWILIO_USERNAME: 'AC6f163c4d02441439ceccf8bf753a293e'
-  TWILIO_PASSWORD: '509fc3dde2df87b937c7f7ac9dc03ac0'
+  TWILIO_USERNAME: 'AC092ba853c9fd9010e5f378bf28688949'
+  TWILIO_PASSWORD: '89e2b6b7b9940b370e95ab2fc1f328d4'
   TWILIO_FLOW_BASE_URL: 'https://studio.twilio.com/v1/Flows/'
-  TWILIO_FLOW_ID: 'FWb68ff38c757c2ebafc3e986c9771b5c2'
+  TWILIO_FLOW_ID: 'FW910c8a5e8e0c73384f3cf490d9cb153b'
   PEND_TZ: 'America/Anchorage'
   DAY_CUTOFF: '20:00'
   OPEN: '20:00'
