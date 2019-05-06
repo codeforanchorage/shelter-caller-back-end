@@ -111,6 +111,7 @@ def update_shelter():
     shelter['login_id'] = form.login_id.data
     shelter['capacity'] = form.capacity.data
     shelter['active']   = form.active.data
+    shelter['visible']  = form.visible.data
    
     shelter = Shelter(**shelter)
     
@@ -143,6 +144,7 @@ def counts(daysback):
 
     counts = db.session.query(Shelter.name, Shelter.capacity, Shelter.id, count_calls)\
              .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
+             .filter(Shelter.visible == True)\
              .order_by(Shelter.name)
 
     result_dict = map(lambda q: q._asdict(), counts)
@@ -169,6 +171,7 @@ def counthistory(page):
                   .join(date_list, true())\
                   .outerjoin(Count, (Count.day == column('gen_day')) &\
                                     (Count.shelter_id == Shelter.id))\
+                  .filter(Shelter.visible == True)\
                   .group_by(Shelter.name)\
                   .order_by(Shelter.name)
 

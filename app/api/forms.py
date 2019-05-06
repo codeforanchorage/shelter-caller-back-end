@@ -10,3 +10,4 @@ class newShelterForm(FlaskForm):
     id       = IntegerField('id')
     submit   = SubmitField("Add")
     active   = BooleanField("active", validators=[DataRequired()])
+    visible  = BooleanField("visible")
