@@ -19,6 +19,7 @@ class Shelter(db.Model):
     counts    = db.relationship('Count', backref='shelter')
     phone     = db.Column(db.String(16), unique=True)
     active    = db.Column(db.Boolean, server_default="TRUE", nullable=False)
+    visible   = db.Column(db.Boolean, server_default="TRUE")
     def toDict(self):
         return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
     def __repr__(self):
@@ -66,7 +67,7 @@ class User(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(50), nullable=False, unique=True)
     password      = db.Column(db.String(255), nullable=False)
-    is_active     = db.Column(db.Boolean, server_default="TRUE", nullable=False),
+    active        = db.Column(db.Boolean, server_default="TRUE", nullable=False),
     first_name    = db.Column(db.String(50), nullable=False)
     last_name     = db.Column(db.String(50), nullable=False)
     roles         = db.relationship('Role', secondary='user_roles')
