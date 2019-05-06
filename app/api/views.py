@@ -10,7 +10,7 @@ from sqlalchemy.sql import func, column, text
 from sqlalchemy.sql.expression import cast, true
 from . import api
 
-from flask import request, jsonify
+from flask import request, jsonify, g
 from flask_jwt_simple import (
     jwt_required, create_jwt, get_jwt_identity
 )
@@ -30,6 +30,8 @@ def role_required(allowed_roles):
         def decorated_function(*args, **kwargs):
             user = get_jwt_identity()
             db_user = User.query.filter_by(username=user).first()
+            # make user object available to routes on flask.g
+            g.user = db_user
             for role in db_user.roles:
                 if role.name in allowed_roles:
                     return f(*args, **kwargs)
@@ -135,10 +137,15 @@ def update_shelter():
 def counts(daysback):
     ''' Results the lastest counts per shelter '''
     tz = Prefs['timezone']
-
     today = pendulum.today(tz).subtract(days = int(daysback))
 
-    count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount,  Count.personcount, Count.day, Count.time)\
+    # only show person count to admin
+    if 'admin' in [role.name for role in g.user.roles]:
+        count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount,  Count.personcount, Count.day, Count.time)\
+                    .filter(Count.day == today.isoformat(' '))\
+                    .subquery()
+    else:
+        count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.time)\
                   .filter(Count.day == today.isoformat(' '))\
                   .subquery()
 
