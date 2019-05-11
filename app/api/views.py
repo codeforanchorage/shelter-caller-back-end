@@ -90,8 +90,8 @@ def add_shelter():
         except IntegrityError as e:
             logging.warning(e.orig.args)
             db.session().rollback()
-            return jsonify({error: "Values must be unique"})
-    return jsonify({result: shelter.toDict()})
+            return jsonify({'error': "Values must be unique"})
+    return jsonify({'result': shelter.toDict()})
 
 @api.route('/delete_shelter/<shelter_id>', methods = ['GET'])
 @jwt_required
@@ -207,3 +207,31 @@ def logs(shelterid, page=0):
     result = [row.toDict() for row in logs]
 
     return jsonify(shelter=shelter.name, logs=result, total_calls=total_calls, page_size=pagesize)
+
+@api.route('/setcount/', methods=['POST'])
+@jwt_required
+@role_required(['admin'])
+def set_count():
+    ''' Manually sets the count on a given day '''
+            
+    personcount   = request.form.get('numberOfPeople')
+    shelterID     = request.form.get('shelterID') 
+    day           = request.form.get('day')
+
+    if not all((personcount, shelterID, day)):
+        return jsonify({"success": False, "error": "Missing data"})
+
+    shelter = Shelter.query.get(int(shelterID))
+    count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=day, time=func.now())
+    log = Log(shelter_id=shelterID, from_number='web', contact_type="Admin", input_text=personcount, action="save_count", parsed_text=personcount)
+    try:
+        db.session.merge(count)
+        db.session.add(log)
+        db.session.commit()
+    except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
+        logging.error(e.orig.args)
+        db.session().rollback()
+        return jsonify({"success": False, "error": "Error Saving Data"})
+
+    return  jsonify({"success": True, "count":personcount})
+    
