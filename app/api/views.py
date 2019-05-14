@@ -146,8 +146,8 @@ def counts(daysback):
                     .subquery()
     else:
         count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.time)\
-                  .filter(Count.day == today.isoformat(' '))\
-                  .subquery()
+                .filter(Count.day == today.isoformat(' '))\
+                .subquery()
 
     counts = db.session.query(Shelter.name, Shelter.capacity, Shelter.id, count_calls)\
              .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
@@ -213,25 +213,34 @@ def logs(shelterid, page=0):
 @role_required(['admin'])
 def set_count():
     ''' Manually sets the count on a given day '''
-            
-    personcount   = request.form.get('numberOfPeople')
-    shelterID     = request.form.get('shelterID') 
-    day           = request.form.get('day')
-
-    if not all((personcount, shelterID, day)):
+    params = request.get_json()
+    personcount   = params.get('numberOfPeople')
+    shelterID     = params.get('shelterID') 
+    day           = params.get('day')
+    print(personcount, shelterID)
+    if not all((shelterID, day)):
         return jsonify({"success": False, "error": "Missing data"})
 
-    shelter = Shelter.query.get(int(shelterID))
-    count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=day, time=func.now())
-    log = Log(shelter_id=shelterID, from_number='web', contact_type="Admin", input_text=personcount, action="save_count", parsed_text=personcount)
-    try:
+    parsed_day = pendulum.parse(day, strict=False)
+
+    if not personcount:
+        count = Count().query.filter_by(shelter_id=shelterID,  day=parsed_day.isoformat()).delete()
+        log = Log(shelter_id=shelterID, from_number='web', contact_type="Admin", input_text="-", action="delete_count", parsed_text="")
+        ret = {"personcount": None, "bedcount":None, "shelterID":shelterID}
+    else:
+        shelter = Shelter.query.get(int(shelterID))
+        count = Count(shelter_id=shelterID, personcount=personcount, bedcount = shelter.capacity - int(personcount), day=parsed_day.isoformat(), time=func.now())
+        log = Log(shelter_id=shelterID, from_number="web", contact_type="Admin", input_text=personcount, action="save_count", parsed_text=personcount)
+        ret = {"personcount": count.personcount, "bedcount":count.bedcount, "shelterID":shelterID}
         db.session.merge(count)
+
+    try:      
         db.session.add(log)
         db.session.commit()
     except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
         db.session().rollback()
         return jsonify({"success": False, "error": "Error Saving Data"})
-
-    return  jsonify({"success": True, "count":personcount})
+    
+    return  jsonify({"success": True, "counts":ret})
     
