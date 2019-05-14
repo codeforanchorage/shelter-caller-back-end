@@ -2,6 +2,7 @@ import logging
 import os
 from functools import wraps
 import pendulum # datetime with friendlier timezones
+from pendulum.exceptions import ParserError
 from flask_cors import CORS, cross_origin
 from sqlalchemy import Date, Interval, desc, select, String, distinct
 from sqlalchemy.exc import IntegrityError
@@ -131,14 +132,24 @@ def update_shelter():
 ##################
 
 @api.route('/counts/', methods=['GET'], defaults = {'daysback': 0})
-@api.route('/counts/<daysback>', methods=['GET'])
+@api.route('/counts/<datestring>', methods=['GET'])
 @jwt_required
 @role_required(['admin', 'visitor'])
-def counts(daysback):
+def counts(datestring):
     ''' Results the lastest counts per shelter '''
     tz = Prefs['timezone']
-    today = pendulum.today(tz).subtract(days = int(daysback))
+    now = pendulum.today(tz)
+    try:
+        today = pendulum.parse(datestring, tz=tz)
+    except ParserError:
+        today = now
 
+    # help browsers navigate dates without worring about local timezone
+    yesterday = today.subtract(days=1).format('YYYYMMDD')
+    if today < now:
+        tomorrow = today.add(days=1).format('YYYYMMDD')
+    else: 
+        tomorrow = None
     # only show person count to admin
     if 'admin' in [role.name for role in g.user.roles]:
         count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount,  Count.personcount, Count.day, Count.time)\
@@ -155,7 +166,7 @@ def counts(daysback):
              .order_by(Shelter.name)
 
     result_dict = map(lambda q: q._asdict(), counts)
-    ret = {"date": today.format('ddd, MMM D, YYYY'), "counts": list(result_dict)}
+    ret = {"yesterday":yesterday, "tomorrow":tomorrow, "date": today.format('ddd, MMM D, YYYY'), "counts": list(result_dict)}
     return jsonify(ret)
     
 @api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
