@@ -212,16 +212,21 @@ def logs(shelterid, page=0):
 @jwt_required
 @role_required(['admin'])
 def set_count():
-    ''' Manually sets the count on a given day '''
+    ''' Manually sets the count on a given day or delete count if personcount is empty'''
     params = request.get_json()
+
     personcount   = params.get('numberOfPeople')
     shelterID     = params.get('shelterID') 
     day           = params.get('day')
-    print(personcount, shelterID)
+    
     if not all((shelterID, day)):
         return jsonify({"success": False, "error": "Missing data"})
 
-    parsed_day = pendulum.parse(day, strict=False)
+    try:
+        parsed_day = pendulum.parse(day, strict=False)
+    except ValueError:
+        return jsonify({"success": False, "error": "Can't parse date"})
+
 
     if not personcount:
         count = Count().query.filter_by(shelter_id=shelterID,  day=parsed_day.isoformat()).delete()
