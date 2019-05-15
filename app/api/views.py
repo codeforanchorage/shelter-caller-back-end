@@ -166,7 +166,7 @@ def counts(datestring):
              .order_by(Shelter.name)
 
     result_dict = map(lambda q: q._asdict(), counts)
-    ret = {"yesterday":yesterday, "tomorrow":tomorrow, "date": today.format('ddd, MMM D, YYYY'), "counts": list(result_dict)}
+    ret = {"yesterday":yesterday, "tomorrow":tomorrow, "date": today.format('YYYY-MM-DD'), "counts": list(result_dict)}
     return jsonify(ret)
     
 @api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
