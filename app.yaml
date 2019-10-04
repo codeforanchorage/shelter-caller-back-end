@@ -1,20 +1,8 @@
 runtime: python37
 
 env_variables:
-  APP_NAME: 'shelter_caller'
-  FORM_SECRET_KEY: 'kjhfuuruh2323'
-  TWILIO_USERNAME: 'AC092ba853c9fd9010e5f378bf28688949'
-  TWILIO_PASSWORD: '89e2b6b7b9940b370e95ab2fc1f328d4'
-  TWILIO_FLOW_BASE_URL: 'https://studio.twilio.com/v1/Flows/'
-  TWILIO_FLOW_ID: 'FW910c8a5e8e0c73384f3cf490d9cb153b'
-  PEND_TZ: 'America/Anchorage'
-  DAY_CUTOFF: '20:00'
-  OPEN: '20:00'
-  CLOSED: '02:00'
-  JWT_KEY: '878dhdjk1'
-  SQLALCHEMY_DATABASE_URI: 'postgresql+psycopg2://postgres:sO26&mg3O5n7@/postgres?host=/cloudsql/shelter-caller:us-west2:bedcount'
-  ADMIN_USER: 'ShelterAdmin'
-  ADMIN_PW: 'Shelt_pw'
+  includes:
+  - ../app_env.yaml
 
 handlers:
   # Serve static files

@@ -9,3 +9,6 @@ lib/
 
 # test caches
 .pytest_cache/
+
+# environmental variable
+app_env.yaml
