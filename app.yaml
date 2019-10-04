@@ -1,8 +1,7 @@
 runtime: python37
 
-env_variables:
-  includes:
-  - ../app_env.yaml
+includes:
+  - app_env.yaml
 
 handlers:
   # Serve static files
