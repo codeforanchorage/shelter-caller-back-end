@@ -40,17 +40,22 @@ def commitLog(log):
 
 # Set up basic auth with a user/password for Twilio API
 password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+
 password_mgr.add_password(None, 
-                          os.environ['TWILIO_FLOW_BASE_URL'],
-                          os.environ['TWILIO_USERNAME'],
-                          os.environ['TWILIO_PASSWORD']) 
+   os.environ['TWILIO_FLOW_BASE_URL'],
+   os.environ['TWILIO_USERNAME'],
+   os.environ['TWILIO_PASSWORD']) 
+
 handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
 opener = urllib.request.build_opener(handler)
 urllib.request.install_opener(opener)
 
 @twilio_api.route('/start_call/', methods = ['GET'])
 def startcall():
-    ''' Cron calls this end point to start the flow for each number that hasn't been contacted today'''     
+    ''' 
+    Cron calls this end point to start the flow 
+    for each number that hasn't been contacted today
+    '''
     flowURL = os.environ['TWILIO_FLOW_BASE_URL']+os.environ['TWILIO_FLOW_ID']+"/Executions"
 
     today = pendulum.today(Prefs['timezone'])
@@ -58,8 +63,8 @@ def startcall():
             today = today.add(days=1)
             
     uncontacted = Shelter.query.outerjoin(Count, 
-                                         (Count.shelter_id == Shelter.id) 
-                                         & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
+      (Count.shelter_id == Shelter.id) 
+      & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
 
     if uncontacted.count() == 0:
         return jsonify({"success": True})

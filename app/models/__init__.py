@@ -6,7 +6,6 @@ import os
 
 db = SQLAlchemy()
 
-
 class Shelter(db.Model):
     __tablename__ = 'shelters'
     id        = db.Column(db.Integer, primary_key=True)
@@ -67,7 +66,7 @@ class User(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(50), nullable=False, unique=True)
     password      = db.Column(db.String(255), nullable=False)
-    active        = db.Column(db.Boolean, server_default="TRUE", nullable=False),
+    active        = db.Column(db.Boolean, server_default="TRUE", nullable=False)
     first_name    = db.Column(db.String(50), nullable=False)
     last_name     = db.Column(db.String(50), nullable=False)
     roles         = db.relationship('Role', secondary='user_roles')

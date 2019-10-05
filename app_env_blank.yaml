@@ -1,15 +1,15 @@
 env_variables:
-  APP_NAME: # google coud app name
-  FORM_SECRET_KEY: # Not used?
-  TWILIO_USERNAME: # For making/recieving calls/texts
-  TWILIO_PASSWORD: # For calling
-  TWILIO_FLOW_BASE_URL: 'https://studio.twilio.com/v1/Flows/'
-  TWILIO_FLOW_ID: # the id from twilio flow dashboard
-  PEND_TZ: 'America/Anchorage'
-  DAY_CUTOFF: '20:00'
-  OPEN: '20:00'
-  CLOSED: '02:00'
-  JWT_KEY:  # web token secret key
-  SQLALCHEMY_DATABASE_URI: # postgres uri should look like: 'postgresql+psycopg2://<username>:<password>@/postgres?host=<DB host>'
-  ADMIN_USER: # Root Admin User
-  ADMIN_PW: # Root Admin Password
+  APP_NAME:                                                       # google coud app name
+  FORM_SECRET_KEY:                                                # Not used?
+  TWILIO_USERNAME:                                                # For making/recieving calls/texts
+  TWILIO_PASSWORD:                                                
+  TWILIO_FLOW_BASE_URL: 'https://studio.twilio.com/v1/Flows/'     # base URI for twilio flow
+  TWILIO_FLOW_ID:                                                 # the id from twilio flow dashboard
+  PEND_TZ: 'America/Anchorage'                                    # local timezone
+  DAY_CUTOFF: '20:00'                                             # time when calling in counts toward next day
+  OPEN: '20:00'                                                   # We will only accept calls between open ...
+  CLOSED: '02:00'                                                 # ... and closed
+  JWT_KEY:                                                        # web token secret key
+  SQLALCHEMY_DATABASE_URI:                                        # postgres uri should look like: 'postgresql+psycopg2://<username>:<password>@/postgres?host=<DB host>'
+  ADMIN_USER:                                                     # Root Admin User
+  ADMIN_PW:                                                       # Root Admin Password

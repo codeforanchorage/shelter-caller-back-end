@@ -4,6 +4,7 @@ from app.models import db
 from flask_migrate import Migrate
 
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
+
 create_prefs(app)
 register_blueprints(app)
 
