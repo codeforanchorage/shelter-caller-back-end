@@ -153,7 +153,7 @@ def update_shelter():
 
 @api.route('/counts/<datestring>', methods=['GET'])
 @jwt_required
-@role_required(['admin', 'visitor'])
+@role_required(['admin', 'visitor', 'public'])
 def counts(datestring):
     ''' 
     Returns the lastest counts per shelter for a given date-string
@@ -190,7 +190,13 @@ def counts(datestring):
                 .filter(Count.day == today.isoformat(' '))\
                 .subquery()
 
-    counts = db.session.query(Shelter.name, Shelter.capacity, Shelter.id, count_calls)\
+    # Only admins and visitors see percentages
+    if set(['admin', 'visitor']).isdisjoint(set( [role.name for role in g.user.roles])):
+       shelterQuery = db.session.query(Shelter.name, Shelter.id, count_calls)
+    else:
+       shelterQuery = db.session.query(Shelter.name,Shelter.capacity, Shelter.id, count_calls)
+
+    counts = shelterQuery\
             .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
             .filter(Shelter.visible == True)\
             .order_by(Shelter.name)
@@ -202,7 +208,7 @@ def counts(datestring):
 @api.route('/counthistory/', methods=['GET'], defaults = {'page': 0})
 @api.route('/counthistory/<page>/', methods=['GET'])
 @jwt_required
-@role_required(['admin', 'visitor'])
+@role_required(['admin', 'visitor', 'public'])
 def counthistory(page):
     ''' 
     Count history for all shelters for the past 14 days. 
