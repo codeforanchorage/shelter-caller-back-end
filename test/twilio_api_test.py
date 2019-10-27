@@ -37,6 +37,22 @@ test_shelter3 = {
     'active': True,
 }
 
+shelter_no_number = {
+    "id": 96,
+    'name': "Uncallable",
+    'login_id': '9696',
+    'capacity': 150,
+    'phone': None,
+    'active': True,
+}
+shelter_empty_number = {
+    "id": 95,
+    'name': "Uncallable2",
+    'login_id': '9595',
+    'capacity': 110,
+    'phone': "",
+    'active': True,
+}
 twil_url = environ['TWILIO_FLOW_BASE_URL'] + environ['TWILIO_FLOW_ID'] + '/Executions'
 def getDataRoute(shelter):
     return  { "To": shelter['phone'],  "From": "+19073121978", "Parameters": '{"id":"%d"}' % shelter['id']}
@@ -87,6 +103,26 @@ def test_start_call_multiple(mockObj, app_with_envion_DB):
     mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter)).encode())
     mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter3)).encode())
 
+@patch('urllib.request.urlopen')
+def test_start_call_multiple(mockObj, app_with_envion_DB):
+    '''It should not try to call shelters with undefined or empty numbers'''
+    s = Shelter(**test_shelter)
+    db.session.add(s)
+    s2 = Shelter(**shelter_no_number)
+    db.session.add(s2)
+    s3 = Shelter(**test_shelter3)
+    db.session.add(s3)
+    s4 = Shelter(**shelter_empty_number)
+    db.session.add(s4)
+
+    db.session.commit()
+    
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+  
+    assert mockObj.call_count == 2 
+    mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter)).encode())
+    mockObj.assert_any_call(twil_url, urllib.parse.urlencode(getDataRoute(test_shelter3)).encode())
 
 @patch('urllib.request.urlopen')
 def test_log_start_call(mockObj, app_with_envion_DB):

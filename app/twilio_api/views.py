@@ -64,7 +64,7 @@ def startcall():
             
     uncontacted = Shelter.query.outerjoin(Count, 
       (Count.shelter_id == Shelter.id) 
-      & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True))
+      & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True) & (Shelter.phone != '' ))
 
     if uncontacted.count() == 0:
         return jsonify({"success": True})
