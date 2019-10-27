@@ -128,13 +128,14 @@ def update_shelter():
     '''
     form = newShelterForm()
     shelter = {}
-    shelter['id']       = form.id.data
-    shelter['name']     = form.name.data
-    shelter['phone']    = form.phone.data
-    shelter['login_id'] = form.login_id.data
-    shelter['capacity'] = form.capacity.data
-    shelter['active']   = form.active.data
-    shelter['visible']  = form.visible.data
+    shelter['id']          = form.id.data
+    shelter['name']        = form.name.data
+    shelter['description'] = form.description.data
+    shelter['phone']       = form.phone.data
+    shelter['login_id']    = form.login_id.data
+    shelter['capacity']    = form.capacity.data
+    shelter['active']      = form.active.data
+    shelter['visible']     = form.visible.data
    
     shelter = Shelter(**shelter)
     
@@ -192,9 +193,9 @@ def counts(datestring):
 
     # Only admins and visitors see percentages
     if set(['admin', 'visitor']).isdisjoint(set( [role.name for role in g.user.roles])):
-       shelterQuery = db.session.query(Shelter.name, Shelter.id, count_calls)
+       shelterQuery = db.session.query(Shelter.name, Shelter.description, Shelter.id, count_calls)
     else:
-       shelterQuery = db.session.query(Shelter.name,Shelter.capacity, Shelter.id, count_calls)
+       shelterQuery = db.session.query(Shelter.name, Shelter.description, Shelter.capacity, Shelter.id, count_calls)
 
     counts = shelterQuery\
             .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
