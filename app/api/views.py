@@ -131,7 +131,7 @@ def update_shelter():
     shelter['id']          = form.id.data
     shelter['name']        = form.name.data
     shelter['description'] = form.description.data
-    shelter['phone']       = form.phone.data
+    shelter['phone']       = form.phone.data or None
     shelter['login_id']    = form.login_id.data
     shelter['capacity']    = form.capacity.data
     shelter['active']      = form.active.data
