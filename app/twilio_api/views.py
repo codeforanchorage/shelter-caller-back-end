@@ -61,7 +61,13 @@ def startcall():
     today = pendulum.today(Prefs['timezone'])
     if pendulum.now(Prefs['timezone']).time() > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']).time():
             today = today.add(days=1)
-            
+
+    '''
+    -- get all shelters where there is no count for today. SQL:
+        SELECT * FROM shelters
+        LEFT OUTER JOIN counts ON counts.shelter_id = shelters.id AND counts.day = CAST(%(param_1)s AS DATE) 
+        WHERE counts.day IS NULL AND shelters.active = true AND shelters.phone IS NOT NULL AND shelters.phone != %(phone_1)s
+    '''
     uncontacted = Shelter.query.outerjoin(Count, 
       (Count.shelter_id == Shelter.id) 
       & (Count.day == cast(today, Date))).filter((Count.day == None) & (Shelter.active == True) & (Shelter.phone != None) & (Shelter.phone != ''))
