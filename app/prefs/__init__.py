@@ -4,16 +4,17 @@ from flask import Blueprint
 
 pref_api = Blueprint('pref_api', __name__)
 
+
 class __Prefs:
-    ''' 
-   The __Prefs class wraps the sqlalchemy object allowing a mapping of prefs to columms
-   Regular key indexing should fetch and set values: p['timezone'] = "America/Anchorage"
-    '''    
+    '''
+    The __Prefs class wraps the sqlalchemy object allowing a mapping of prefs to columms
+    Regular key indexing should fetch and set values: p['timezone'] = "America/Anchorage"
+    '''
     def init(self, app):
-        ''' 
+        '''
         This will find the row corresponding to `app_id` or create that row from the
-        default values. This is done as a seperate method to allow easy testing while still 
-        using a singleton prefs object. 
+        default values. This is done as a seperate method to allow easy testing while still
+        using a singleton prefs object.
         '''
         self.defaults = defaults()
         with app.app_context():
@@ -26,7 +27,6 @@ class __Prefs:
     def __getitem__(self, name):
         if name not in self.defaults:
             raise KeyError
-        #return getattr(self._prefs, name)
         prefs = Pref.query.get(self.defaults['app_id'])
         return getattr(prefs, name)
 
@@ -37,7 +37,7 @@ class __Prefs:
         setattr(prefs, name, value)
         db.session.add(prefs)
         db.session.commit()
-   
+
     def update(self, d):
         prefs = Pref.query.get(self.defaults['app_id'])
         for k in d:
@@ -50,9 +50,10 @@ class __Prefs:
     def toDict(self):
         prefs = Pref.query.get(self.defaults['app_id'])
         return prefs.toDict()
-   
-def defaults():   
-    return  {
+
+
+def defaults():
+    return {
         "app_id": os.environ['APP_NAME'],
         "timezone": os.environ.get('PEND_TZ'),
         "enforce_hours": True,
@@ -61,6 +62,7 @@ def defaults():
         "start_day": os.environ.get('DAY_CUTOFF')
     }
 
+
 Prefs = __Prefs()
 
-from . import views
+from . import views  # noqa: [E402,E401]

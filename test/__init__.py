@@ -16,33 +16,37 @@ environ = {
 }
 
 db_environ = {
-    "app_id":  environ["APP_NAME"],    
+    "app_id": environ["APP_NAME"],
     "timezone": "America/Anchorage",
-    "enforce_hours": False, 
+    "enforce_hours": False,
     "open_time": "22:00",
     "close_time": "02:00",
-    "start_day": "22:00" 
+    "start_day": "22:00"
 }
+
+
 @pytest.fixture
 def client():
     _app = create_app('testing')
-    db.create_all(app = _app)
+    db.create_all(app=_app)
     register_blueprints(_app)
     with _app.app_context():
-        yield _app  
-    db.drop_all(app = _app)
+        yield _app
+    db.drop_all(app=_app)
+
 
 @pytest.fixture
 def app_with_envion(monkeypatch, client):
     for k, v in environ.items():
-        monkeypatch.setenv(k,v)
+        monkeypatch.setenv(k, v)
     create_prefs(client)
     return client
+
 
 @pytest.fixture
 def app_with_envion_DB(monkeypatch, client):
     for k, v in environ.items():
-        monkeypatch.setenv(k,v)
+        monkeypatch.setenv(k, v)
     p = Pref(**db_environ)
     db.session.add(p)
     db.session.commit()
