@@ -13,3 +13,4 @@ env_variables:
   SQLALCHEMY_DATABASE_URI:                                        # postgres uri should look like: 'postgresql+psycopg2://<username>:<password>@/postgres?host=<DB host>'
   ADMIN_USER:                                                     # Root Admin User
   ADMIN_PW:                                                       # Root Admin Password
+  FLASK_CONFIG: 'production'

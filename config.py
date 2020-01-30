@@ -7,6 +7,9 @@ class Config:
     SECRET_KEY = "hjhfhj2387f"
     JWT_SECRET_KEY = os.environ['JWT_KEY']
     SQLALCHEMY_DATABASE_URI = os.environ['SQLALCHEMY_DATABASE_URI']
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True
+    }
     @staticmethod
     def init_app(app):
         pass
@@ -24,7 +27,7 @@ class TestingConfig(Config):
 
 class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ['SQLALCHEMY_DATABASE_URI']
-    pass
+    DEBUG = False
 
 
 config = {
