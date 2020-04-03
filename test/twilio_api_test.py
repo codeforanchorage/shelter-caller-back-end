@@ -63,7 +63,6 @@ def getDataRoute(shelter):
 ##########################
 #       start_call       #
 ##########################
-
 @patch('urllib.request.urlopen')
 def test_start_call(mockObj, app_with_envion_DB):
     '''It should call the url to initiate the Twilio flow with the correct data'''

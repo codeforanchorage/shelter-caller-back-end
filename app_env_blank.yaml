@@ -1,5 +1,5 @@
 env_variables:
-  APP_NAME:                                                       # google coud app name
+  APP_NAME:                                                       # google cloud app name
   FORM_SECRET_KEY:                                                # Not used?
   TWILIO_USERNAME:                                                # For making/recieving calls/texts
   TWILIO_PASSWORD:                                                

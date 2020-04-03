@@ -21,7 +21,6 @@ def pref():
         200:
             JSON prefs
     '''
-    print(get_jwt_identity())
     if isAdmin(get_jwt_identity()):
         return jsonify(Prefs.toDict())
     return jsonify(msg="Permission denied"), 403
