@@ -1,3 +1,5 @@
+import os
+from flask_csv import send_csv
 import logging
 from functools import wraps
 import pendulum
@@ -16,6 +18,10 @@ from flask_jwt_simple import (
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log, User
 from ..prefs import Prefs
+
+# TODO write a real solution for this
+# This is just a stopgap to get things working
+TEMP_API_KEY = os.environ['TEMP_EXPORT_KEY']
 
 
 ##############
@@ -343,3 +349,30 @@ def set_count():
         return jsonify({"success": False, "error": "Error Saving Data"}), 500
 
     return jsonify({"success": True, "counts": ret})
+
+
+@api.route(f'/{TEMP_API_KEY}/export/', methods=['GET'])
+def export():
+    '''
+    Returns all counts per shelter
+    Returns:
+        200:
+            JSON object with:
+                counts: list of shelters and this day's counts
+    '''
+
+    # only show person count to admin
+    counts = db.session.query(Count)\
+        .join(Shelter, Shelter.id == Count.shelter_id)\
+        .order_by(Count.day)\
+        .values(
+            Count.shelter_id,
+            Count.bedcount,
+            Count.personcount,
+            Count.day,
+            Shelter.name
+    )
+
+    result_dict = map(lambda q: q._asdict(), counts)
+
+    return send_csv(result_dict, "shelterCounts.csv", ['day', 'name', 'personcount', 'bedcount', 'shelter_id'])
