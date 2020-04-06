@@ -190,7 +190,12 @@ def counts(datestring):
             .filter(Count.day == today.isoformat(' '))\
             .subquery()
     else:
-        count_calls = db.session.query(Count.shelter_id.label("call_shelterID"), Count.bedcount, Count.day, Count.time)\
+        count_calls = db.session.query(
+            Count.shelter_id.label("call_shelterID"),
+            Count.bedcount,
+            Count.personcount,
+            Count.day,
+            Count.time)\
             .filter(Count.day == today.isoformat(' '))\
             .subquery()
 
