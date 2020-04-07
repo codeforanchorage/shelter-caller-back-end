@@ -22,6 +22,7 @@ from ..prefs import Prefs
 # TODO write a real solution for this
 # This is just a stopgap to get things working
 TEMP_API_KEY = os.environ['TEMP_EXPORT_KEY']
+TEMP_PUBLIC_EXPORT_KEY = os.environ['TEMP_PUBLIC_EXPORT_KEY']
 
 
 ##############
@@ -350,7 +351,9 @@ def set_count():
 
     return jsonify({"success": True, "counts": ret})
 
-
+# The following two routes are quick stopgaps for allowing api data to be accessed
+# With a token rather than a login
+# TODO: make this more flexible and pull tokens from DB rather than env.
 @api.route(f'/{TEMP_API_KEY}/export/', methods=['GET'])
 def export():
     '''
@@ -365,6 +368,34 @@ def export():
     counts = db.session.query(Count)\
         .join(Shelter, Shelter.id == Count.shelter_id)\
         .order_by(Count.day)\
+        .values(
+            Count.shelter_id,
+            Count.bedcount,
+            Count.personcount,
+            Count.day,
+            Shelter.name
+    )
+
+    result_dict = map(lambda q: q._asdict(), counts)
+
+    return send_csv(result_dict, "shelterCounts.csv", ['day', 'name', 'personcount', 'bedcount', 'shelter_id'])
+
+
+@api.route(f'/{TEMP_PUBLIC_EXPORT_KEY}/export/', methods=['GET'])
+def export_public():
+    '''
+    Returns all counts per shelter for public shelters
+    Returns:
+        200:
+            JSON object with:
+                counts: list of shelters and this day's counts
+    '''
+
+    # only show person count to admin
+    counts = db.session.query(Count)\
+        .join(Shelter, Shelter.id == Count.shelter_id)\
+        .order_by(Count.day)\
+        .filter(Shelter.public)\
         .values(
             Count.shelter_id,
             Count.bedcount,

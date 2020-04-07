@@ -19,6 +19,7 @@ class Shelter(db.Model):
     phone = db.Column(db.String(16), unique=True)
     active = db.Column(db.Boolean, server_default="TRUE", nullable=False)
     visible = db.Column(db.Boolean, server_default="TRUE")
+    public = db.Column(db.Boolean, server_default="TRUE")
 
     def toDict(self):
         return {
