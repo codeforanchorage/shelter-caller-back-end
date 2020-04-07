@@ -1,23 +1,18 @@
 import os
 from flask_csv import send_csv
 import logging
-from functools import wraps
 import pendulum
 from pendulum.exceptions import ParserError
-from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import func, column
-from sqlalchemy.sql.expression import cast, true
+from sqlalchemy.sql import func
 from . import api
 
 from flask import request, jsonify, g
-from flask_jwt_simple import (
-    jwt_required, create_jwt, get_jwt_identity
-)
+from flask_jwt_simple import jwt_required, create_jwt
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log, User
 from ..prefs import Prefs
+from .decorators import role_required
 
 # TODO write a real solution for this
 # This is just a stopgap to get things working
@@ -28,34 +23,6 @@ TEMP_PUBLIC_EXPORT_KEY = os.environ['TEMP_PUBLIC_EXPORT_KEY']
 ##############
 #    AUTH    #
 ##############
-def role_required(allowed_roles):
-    '''
-    Helper decorator for routes to check that a user is
-    in the passed in list of allowed_roles.
-
-    Decorator must go after @jwt_required to we have the token available
-
-    Args:
-        allowed_roles: a list of allowed user roles
-
-    Returns:
-        Decorator
-    '''
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            user = get_jwt_identity()
-            db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
-            # make user object available to routes on flask.g
-            g.user = db_user
-            for role in db_user.roles:
-                if role.name in allowed_roles:
-                    return f(*args, **kwargs)
-            return jsonify(msg="Permission denied"), 403
-        return decorated_function
-    return decorator
-
-
 @api.route('/admin_login/', methods=['POST'])
 def login():
     '''
@@ -157,6 +124,7 @@ def update_shelter():
 ##################
 #     Counts     #
 ##################
+@api.route('/counts/', defaults={'datestring': None}, methods=['GET'])
 @api.route('/counts/<datestring>', methods=['GET'])
 @jwt_required
 @role_required(['admin', 'visitor', 'public'])
@@ -176,7 +144,7 @@ def counts(datestring):
 
     try:
         today = pendulum.parse(datestring, tz=tz)
-    except ParserError:
+    except (ParserError, TypeError):
         today = now
 
     # help browsers navigate dates without worring about local timezone
@@ -186,25 +154,14 @@ def counts(datestring):
     else:
         tomorrow = None
 
-    # only show person count to admin
-    if 'admin' in [role.name for role in g.user.roles]:
-        count_calls = db.session.query(
-            Count.shelter_id.label("call_shelterID"),
-            Count.bedcount,
-            Count.personcount,
-            Count.day,
-            Count.time)\
-            .filter(Count.day == today.isoformat(' '))\
-            .subquery()
-    else:
-        count_calls = db.session.query(
-            Count.shelter_id.label("call_shelterID"),
-            Count.bedcount,
-            Count.personcount,
-            Count.day,
-            Count.time)\
-            .filter(Count.day == today.isoformat(' '))\
-            .subquery()
+    count_calls = db.session.query(
+        Count.shelter_id.label("call_shelterID"),
+        Count.bedcount,
+        Count.personcount,
+        Count.day,
+        Count.time)\
+        .filter(Count.day == today.isoformat(' '))\
+        .subquery()
 
     # Only admins and visitors see percentages
     if set(['admin', 'visitor']).isdisjoint(set([role.name for role in g.user.roles])):
@@ -213,9 +170,14 @@ def counts(datestring):
         shelterQuery = db.session.query(Shelter.name, Shelter.description, Shelter.capacity, Shelter.id, count_calls)
 
     counts = shelterQuery\
-        .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))\
-        .filter(Shelter.visible == True)\
-        .order_by(Shelter.name)
+        .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))
+
+    if 'admin' in [role.name for role in g.user.roles]:
+        counts = counts.filter(Shelter.visible == True)
+    else:
+        counts = counts.filter(Shelter.visible == True, Shelter.public)
+
+    counts = counts.order_by(Shelter.name)
 
     result_dict = map(lambda q: q._asdict(), counts)
     ret = {
@@ -225,44 +187,6 @@ def counts(datestring):
         "counts": list(result_dict)
     }
     return jsonify(ret)
-
-
-@api.route('/counthistory/', methods=['GET'], defaults={'page': 0})
-@api.route('/counthistory/<page>/', methods=['GET'])
-@jwt_required
-@role_required(['admin', 'visitor', 'public'])
-def counthistory(page):
-    '''
-    Count history for all shelters for the past 14 days.
-    Used for chart showing counts over time.
-    Supports pagination with page in path
-    '''
-    tz = Prefs['timezone']
-
-    pagesize = 14  # days
-    daysback = int(page) * pagesize + pagesize - 1
-
-    today = pendulum.today(tz).subtract(days=(int(page) * pagesize))
-    backthen = pendulum.today(tz).subtract(days=daysback)
-
-    date_list = func.generate_series(
-        cast(backthen.to_date_string(), Date),
-        cast(today.to_date_string(), Date),
-        '1 day'
-    ).alias('gen_day')
-
-    time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.bedcount).label('data'))\
-        .join(date_list, true())\
-        .outerjoin(Count, (Count.day == column('gen_day')) & (Count.shelter_id == Shelter.id))\
-        .filter(Shelter.visible == True)\
-        .group_by(Shelter.name)\
-        .order_by(Shelter.name)
-
-    results = {
-        "dates": [d.to_date_string() for d in (today - backthen)],
-        "shelters": [row._asdict() for row in time_series]
-    }
-    return jsonify(results)
 
 
 @api.route('/logs/<shelterid>/', methods=['GET'])
