@@ -110,6 +110,7 @@ def update_shelter():
     shelter['capacity'] = form.capacity.data
     shelter['active'] = form.active.data
     shelter['visible'] = form.visible.data
+    shelter['public'] = form.public.data
 
     shelter = Shelter(**shelter)
 
