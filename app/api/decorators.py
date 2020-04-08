@@ -31,3 +31,18 @@ def role_required(allowed_roles):
             return jsonify(msg="Permission denied"), 403
         return decorated_function
     return decorator
+
+
+def add_user():
+    ''' Decorator for routes to add user with roles to route'''
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user = get_jwt_identity()
+            if user:
+                db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
+                # make user object available to routes on flask.g
+                g.user = db_user
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

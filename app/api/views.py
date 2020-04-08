@@ -3,16 +3,18 @@ from flask_csv import send_csv
 import logging
 import pendulum
 from pendulum.exceptions import ParserError
+from sqlalchemy import Date
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.sql import func
+from sqlalchemy.sql.expression import cast, true
+from sqlalchemy.sql import func, column
 from . import api
 
 from flask import request, jsonify, g
-from flask_jwt_simple import jwt_required, create_jwt
+from flask_jwt_simple import jwt_required, create_jwt, jwt_optional
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log, User
 from ..prefs import Prefs
-from .decorators import role_required
+from .decorators import role_required, add_user
 
 # TODO write a real solution for this
 # This is just a stopgap to get things working
@@ -126,8 +128,8 @@ def update_shelter():
 ##################
 @api.route('/counts/', defaults={'datestring': None}, methods=['GET'])
 @api.route('/counts/<datestring>', methods=['GET'])
-@jwt_required
-@role_required(['admin', 'visitor', 'public'])
+@jwt_optional
+@add_user()
 def counts(datestring):
     '''
     Returns the lastest counts per shelter for a given date-string
@@ -164,7 +166,7 @@ def counts(datestring):
         .subquery()
 
     # Only admins and visitors see percentages
-    if set(['admin', 'visitor']).isdisjoint(set([role.name for role in g.user.roles])):
+    if 'user' not in g or set(['admin', 'visitor']).isdisjoint(set([role.name for role in g.user.roles])):
         shelterQuery = db.session.query(Shelter.name, Shelter.description, Shelter.id, count_calls)
     else:
         shelterQuery = db.session.query(Shelter.name, Shelter.description, Shelter.capacity, Shelter.id, count_calls)
@@ -172,7 +174,7 @@ def counts(datestring):
     counts = shelterQuery\
         .outerjoin(count_calls, (Shelter.id == count_calls.c.call_shelterID))
 
-    if 'admin' in [role.name for role in g.user.roles]:
+    if 'user' in g and 'admin' in [role.name for role in g.user.roles]:
         counts = counts.filter(Shelter.visible == True)
     else:
         counts = counts.filter(Shelter.visible == True, Shelter.public)
@@ -187,6 +189,50 @@ def counts(datestring):
         "counts": list(result_dict)
     }
     return jsonify(ret)
+
+
+@api.route('/counthistory/', methods=['GET'], defaults={'page': 0})
+@api.route('/counthistory/<page>/', methods=['GET'])
+@jwt_optional
+@add_user()
+def counthistory(page):
+    '''
+    Count history for all shelters for the past 14 days.
+    Used for chart showing counts over time.
+    Supports pagination with page in path
+    '''
+    tz = Prefs['timezone']
+
+    pagesize = 14  # days
+    daysback = int(page) * pagesize + pagesize - 1
+
+    today = pendulum.today(tz).subtract(days=(int(page) * pagesize))
+    backthen = pendulum.today(tz).subtract(days=daysback)
+
+    date_list = func.generate_series(
+        cast(backthen.to_date_string(), Date),
+        cast(today.to_date_string(), Date),
+        '1 day'
+    ).alias('gen_day')
+
+    time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.personcount).label('data'))\
+        .join(date_list, true())\
+        .outerjoin(Count, (Count.day == column('gen_day')) & (Count.shelter_id == Shelter.id))
+
+    if 'user' not in g or set(['admin', 'visitor']).isdisjoint(set([role.name for role in g.user.roles])):
+        time_series = time_series.filter(Shelter.visible == True, Shelter.public)
+    else:
+        time_series = time_series.filter(Shelter.visible == True)
+
+    time_series = time_series\
+        .group_by(Shelter.name)\
+        .order_by(Shelter.name)
+
+    results = {
+        "dates": [d.to_date_string() for d in (today - backthen)],
+        "shelters": [row._asdict() for row in time_series]
+    }
+    return jsonify(results)
 
 
 @api.route('/logs/<shelterid>/', methods=['GET'])
