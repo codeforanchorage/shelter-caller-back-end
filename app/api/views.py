@@ -15,6 +15,7 @@ from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log, User
 from ..prefs import Prefs
 from .decorators import role_required, add_user
+from app.exceptions import InvalidUsage, UnauthorizedUse, ServerError
 
 # TODO write a real solution for this
 # This is just a stopgap to get things working
@@ -41,20 +42,20 @@ def login():
             not authorized
     '''
     if not request.is_json:
-        return jsonify({"msg": "Missing JSON in request"}), 400
+        raise InvalidUsage("Missing JSON in request", status_code=400)
 
     params = request.get_json()
     user = params.get('user', None)
     password = params.get('password', None)
 
     if not user:
-        return jsonify({"msg": "Missing username parameter"}), 400
+        raise InvalidUsage("Missing username parameter", status_code=400)
     if not password:
-        return jsonify({"msg": "Missing password parameter"}), 400
+        raise InvalidUsage("Missing password paramter", status_code=400)
 
     db_user = User.query.filter_by(username=user).first()
     if not db_user or db_user.password != password:
-        return jsonify({"msg": "Bad username or password"}), 401
+        raise UnauthorizedUse()
     roles = [role.name for role in db_user.roles]
     return jsonify(jwt=create_jwt(identity=user), roles=roles), 200
 
@@ -82,12 +83,11 @@ def delete_shelter(shelter_id):
     '''
     Deletes a shelter
     Response:
-        200:
-            JSON object with result: success
+        204:
     '''
     Shelter.query.filter_by(id=shelter_id).delete()
     db.session.commit()
-    return jsonify({"result": "success"})
+    return '', 204
 
 
 @api.route('/update_shelter/', methods=['POST'])
@@ -120,8 +120,8 @@ def update_shelter():
     except IntegrityError as e:
         logging.warning(e.orig.args)
         db.session().rollback()
-        return jsonify({"error": 'Values must be unique'}), 400
-    return jsonify({"result": shelter.toDict()})
+        raise InvalidUsage("Values must be unique", status_code=400)
+    return jsonify(shelter.toDict())
 
 
 ##################
@@ -275,12 +275,11 @@ def set_count():
     day = params.get('day')
 
     if not all((shelterID, day)):
-        return jsonify({"success": False, "error": "Missing data"}), 400
-
+        raise InvalidUsage("Missing data", status_code=400)
     try:
         parsed_day = pendulum.parse(day, strict=False)
     except ValueError:
-        return jsonify({"success": False, "error": "Can't parse date"}), 400
+        raise InvalidUsage("Can't parse date", status_code=400)
 
     if not personcount:
         count = Count().query.filter_by(shelter_id=shelterID, day=parsed_day.isoformat()).delete()
@@ -318,7 +317,7 @@ def set_count():
     except IntegrityError as e:             # calls has a foreign key constraint linking it to shelters
         logging.error(e.orig.args)
         db.session().rollback()
-        return jsonify({"success": False, "error": "Error Saving Data"}), 500
+        raise ServerError('Error Saving Data')
 
     return jsonify({"success": True, "counts": ret})
 
@@ -378,3 +377,17 @@ def export_public():
     result_dict = map(lambda q: q._asdict(), counts)
 
     return send_csv(result_dict, "shelterCounts.csv", ['day', 'name', 'personcount', 'bedcount', 'shelter_id'])
+
+
+@api.errorhandler(InvalidUsage)
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
+@api.errorhandler(UnauthorizedUse)
+def handle_unauthorized_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response

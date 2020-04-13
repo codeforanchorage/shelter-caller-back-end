@@ -1,8 +1,8 @@
 from unittest.mock import patch
 from app.prefs import Prefs
 from app.models import Pref
-from . import environ, db_environ
 from flask_jwt_simple import create_jwt
+from .fixtures.app_fixtures import environ, db_environ
 
 
 def test_prefs_environ(app_with_envion):

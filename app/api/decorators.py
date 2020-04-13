@@ -1,5 +1,5 @@
 from functools import wraps
-from flask_jwt_simple import get_jwt_identity
+import flask_jwt_simple as jwt
 from sqlalchemy.orm import joinedload
 from ..models import User
 from flask import jsonify, g
@@ -21,7 +21,8 @@ def role_required(allowed_roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            user = get_jwt_identity()
+            user = jwt.get_jwt_identity()
+
             db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
             # make user object available to routes on flask.g
             g.user = db_user
@@ -38,7 +39,7 @@ def add_user():
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            user = get_jwt_identity()
+            user = jwt.get_jwt_identity()
             if user:
                 db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
                 # make user object available to routes on flask.g
