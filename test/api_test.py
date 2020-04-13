@@ -56,3 +56,38 @@ def test_get_shelters_no_auth(app_with_envion_DB, test_shelters):
 
     rv = client.get('/api/shelters/')
     assert rv.status_code == 401
+
+
+def test_admin_login_good(app_with_envion_DB):
+    '''should return a token and roles to authorized user'''
+    client = app_with_envion_DB.test_client()
+    rv = client.post(
+        '/api/admin_login/',
+        json={"user": "admin", "password": "password"}
+    )
+    json_response = rv.get_json()
+    assert rv.status_code == 200
+    assert 'jwt' in json_response
+    assert json_response['roles'] == ['admin']
+
+
+def test_admin_no_user(app_with_envion_DB):
+    '''should return 400 when login is incomplete'''
+    client = app_with_envion_DB.test_client()
+    rv = client.post(
+        '/api/admin_login/',
+        json={"password": "password"}
+    )
+    assert rv.status_code == 400
+    assert 'jwt' not in rv.get_json()
+
+
+def test_admin_unauthorized(app_with_envion_DB):
+    '''should return 401 for unknown logins'''
+    client = app_with_envion_DB.test_client()
+    rv = client.post(
+        '/api/admin_login/',
+        json={"user": "admin", "password": "bad_password"}
+    )
+    assert rv.status_code == 401
+    assert 'jwt' not in rv.get_json()

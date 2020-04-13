@@ -34,7 +34,7 @@ class UnauthorizedUse(Exception):
 
 class ServerError(Exception):
     status_code = 500
-    message = "Server"
+    message = "Server Error"
 
     def __init__(self, message=None, status_code=None, payload=None):
         Exception.__init__(self)

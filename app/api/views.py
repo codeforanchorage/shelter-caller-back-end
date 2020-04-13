@@ -42,16 +42,16 @@ def login():
             not authorized
     '''
     if not request.is_json:
-        raise InvalidUsage("Missing JSON in request", status_code=400)
+        raise InvalidUsage("Missing JSON in request")
 
     params = request.get_json()
     user = params.get('user', None)
     password = params.get('password', None)
 
     if not user:
-        raise InvalidUsage("Missing username parameter", status_code=400)
+        raise InvalidUsage("Missing username parameter")
     if not password:
-        raise InvalidUsage("Missing password paramter", status_code=400)
+        raise InvalidUsage("Missing password paramter")
 
     db_user = User.query.filter_by(username=user).first()
     if not db_user or db_user.password != password:
