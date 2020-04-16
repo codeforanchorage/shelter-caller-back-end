@@ -17,19 +17,19 @@ def inactive_shelter():
 def test_shelters():
     return (
         {
-            "id": 99,
-            'name': "test_shelter",
+            "id": 1,
+            'name': "test_shelter_1",
             'login_id': '9999',
             'capacity': 100,
-            'phone': '123-555-5555',
+            'phone': '907-555-1111',
             'active': True,
         },
         {
-            "id": 97,
-            'name': "test_shelter_3",
+            "id": 2,
+            'name': "test_shelter_2",
             'login_id': '0000',
             'capacity': 100,
-            'phone': '123-111-1111',
+            'phone': '907-555-2222',
             'active': True,
         })
 
@@ -37,8 +37,8 @@ def test_shelters():
 @pytest.fixture
 def shelter_no_number():
     return {
-        "id": 96,
-        'name': "Uncallable",
+        "id": 101,
+        'name': "Uncallable_1",
         'login_id': '9696',
         'capacity': 150,
         'phone': None,
@@ -49,8 +49,8 @@ def shelter_no_number():
 @pytest.fixture
 def shelter_empty_number():
     return {
-        "id": 95,
-        'name': "Uncallable2",
+        "id": 102,
+        'name': "Uncallable_2",
         'login_id': '9595',
         'capacity': 110,
         'phone': "",
