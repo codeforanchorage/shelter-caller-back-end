@@ -1,11 +1,11 @@
 # Shelter Called API
 This codebase provides two basic functions:
 1. Supports api calls from Twilio in response to events from Twilio Studio and saves data
-2. Support a front-end dashboard to display datat and admin features to edit shelter metadata 
+2. Support a front-end dashboard to display data and admin features 
 
 Twilio logic that repsonds to users is primarily handled through a Twilio studio "flow" (https://www.twilio.com/studio). Twilio flows can be imported and exported as JSON. The current flow JSON file is part of this repo at `/twilio_studio/studio.flow.json`
 
-The front-end is a seperate app written in Vue that hits this api. 
+The front-end is a seperate app written with Vue that hits this api. 
 
 ## Install
 Clone repo
@@ -61,3 +61,6 @@ Once the SDK is installed, `cd` into the folder with `app.yaml` and run
 gcloud app deploy
 ```
 This will create a new instance on app engine, but will not start sending traffic to it. You can log into the Google Console, run the version to make sure it meets requirements and then migrate traffic to it.
+
+## Twilio Setup
+The telephone/sms aspects of this app are handled by [Twilio studio](https://www.twilio.com/studio). Studio works by creating flows created as a set of nodes and connections via Twilio's user interface. Certain nodes in the flow will hit this api to save data or validate input. The file `twilio_studio/studio.flow.json` can be used to recreate a working flow on studio. However, the URL for the api calls must be hard-coded in this JSON file. The included file has placeholders for the base_url `<BASE_URL>`. To use this in production, replace strings `<BASE_URL>` with the actual url used in production. Then follow instruction on twilio studio to create a new flow from a JSON document.

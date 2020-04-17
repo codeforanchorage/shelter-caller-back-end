@@ -12,3 +12,6 @@ lib/
 
 # environmental variable
 app_env.yaml
+
+# studio flow with production urls
+studio.flow-active.json

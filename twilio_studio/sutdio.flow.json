@@ -42,7 +42,7 @@
            "y": 560
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/save_count/",
+         "url": "<BASE_URL>/twilio/save_count/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -209,7 +209,7 @@
            "y": -20
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/validate_shelter/",
+         "url": "<BASE_URL>/twilio/validate_shelter/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -474,7 +474,7 @@
            "y": 460
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/validate_shelter/",
+         "url": "<BASE_URL>/twilio/validate_shelter/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -583,7 +583,7 @@
            "y": 1130
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/save_count/",
+         "url": "<BASE_URL>/twilio/save_count/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -745,7 +745,7 @@
            "y": -200
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/log_failed_call/",
+         "url": "<BASE_URL>/twilio/log_failed_call/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -794,7 +794,7 @@
            "y": -440
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/log_failed_call/",
+         "url": "<BASE_URL>/twilio/log_failed_call/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -999,7 +999,7 @@
            "y": -1000
          },
          "method": "GET",
-         "url": "http://shelter-caller.appspot.com/twilio/validate_time/",
+         "url": "<BASE_URL>/twilio/validate_time/",
          "body": null,
          "timeout": null,
          "parameters": null,
@@ -1098,7 +1098,7 @@
            "y": -600
          },
          "method": "GET",
-         "url": "http://shelter-caller.appspot.com/twilio/validate_time/",
+         "url": "<BASE_URL>/twilio/validate_time/",
          "body": null,
          "timeout": null,
          "parameters": null,
@@ -1552,7 +1552,7 @@
            "y": 330
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/log_failed_call/",
+         "url": "<BASE_URL>/twilio/log_failed_call/",
          "body": null,
          "timeout": null,
          "parameters": [
@@ -1601,7 +1601,7 @@
            "y": 1150
          },
          "method": "POST",
-         "url": "http://shelter-caller.appspot.com/twilio/log_failed_call/",
+         "url": "<BASE_URL>/twilio/log_failed_call/",
          "body": null,
          "timeout": null,
          "parameters": [

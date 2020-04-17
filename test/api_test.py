@@ -139,7 +139,7 @@ def test_counts_yesterday(app_with_envion_DB, counts):
 
 
 def test_counts_next_previous(app_with_envion_DB, counts):
-    '''should not provide links to yesterday and tomorrow for past count queries'''
+    '''should provide links to yesterday and tomorrow for past count queries'''
     client = app_with_envion_DB.test_client()
     yesterday = yesterday = (date.today() - timedelta(days=1)).strftime('%Y%m%d')
     rv = client.get(f'/api/counts/{yesterday}')
