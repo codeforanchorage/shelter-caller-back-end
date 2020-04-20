@@ -1,14 +1,43 @@
+from datetime import date, timedelta
 import pytest
 from unittest.mock import Mock, patch
-from app.models import Shelter
-from app import db
 from flask import g
 from flask_jwt_simple import create_jwt
-from app.api.decorators import add_user
-from datetime import date, timedelta
+from app.models import Shelter
+from app import db
+from app.models import Count
+from app.api.decorators import add_user, role_required
+from app.exceptions import UnauthorizedUse
 
 
-@pytest.mark.current
+@patch('flask_jwt_simple.get_jwt_identity')
+def test_role_required_decorator(jwtMock, app_with_envion_DB):
+    '''@role_required() should call decorated function if user is in roles'''
+    jwtMock.return_value = 'admin'
+    f = Mock()
+    role_required(['minion', 'admin'])(f)()
+    f.assert_called()
+    assert any(r.name == 'admin' for r in g.user.roles)
+
+
+@patch('flask_jwt_simple.get_jwt_identity')
+def test_role_required_unauthorized_decorator(jwtMock, app_with_envion_DB):
+    '''@role_required() should raise Unauthorized if user is not in roles'''
+    jwtMock.return_value = 'visitor'
+    f = Mock()
+    with pytest.raises(UnauthorizedUse):
+        role_required(['minion', 'admin'])(f)()
+
+
+@patch('flask_jwt_simple.get_jwt_identity')
+def test_role_required_unknown_decorator(jwtMock, app_with_envion_DB):
+    '''@role_required() should raise Unauthorized if user is not known'''
+    jwtMock.return_value = 'hacker'
+    f = Mock()
+    with pytest.raises(UnauthorizedUse):
+        role_required(['minion', 'admin'])(f)()
+
+
 @patch('flask_jwt_simple.get_jwt_identity')
 def test_add_user_decorator(jwtMock, app_with_envion_DB):
     '''@add_user() should includes users roles from DB to g.'''
@@ -148,3 +177,35 @@ def test_counts_next_previous(app_with_envion_DB, counts):
     daybefore = (date.today() - timedelta(days=2)).strftime('%Y%m%d')
     assert responses['tomorrow'] == today
     assert responses['yesterday'] == daybefore
+
+
+def test_set_count(app_with_envion_DB, counts):
+    '''should update count for given shelter and day'''
+    client = app_with_envion_DB.test_client()
+    yesterday = (date.today() - timedelta(days=1))
+    jwt = create_jwt(identity='admin')
+    rv = client.post(
+        '/api/setcount/',
+        json={"numberOfPeople": 66, "shelterID": 1, "day": yesterday},
+        headers={"Authorization": "Bearer " + jwt}
+    )
+
+    count = Count.query.filter_by(day=yesterday, shelter_id=1).first()
+    assert rv.status_code == 200
+    assert count.personcount == 66
+
+
+def test_delete_count(app_with_envion_DB, counts):
+    '''should delete count for given shelter and day if count is not given'''
+    client = app_with_envion_DB.test_client()
+    yesterday = (date.today() - timedelta(days=1))
+    jwt = create_jwt(identity='admin')
+    rv = client.post(
+        '/api/setcount/',
+        json={"shelterID": 1, "day": yesterday},
+        headers={"Authorization": "Bearer " + jwt}
+    )
+
+    count = Count.query.filter_by(day=yesterday, shelter_id=1).first()
+    assert rv.status_code == 200
+    assert count is None

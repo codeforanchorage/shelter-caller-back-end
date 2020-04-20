@@ -1,8 +1,9 @@
 from functools import wraps
 import flask_jwt_simple as jwt
+from flask import g
 from sqlalchemy.orm import joinedload
 from ..models import User
-from flask import jsonify, g
+from app.exceptions import UnauthorizedUse
 
 
 def role_required(allowed_roles):
@@ -24,12 +25,14 @@ def role_required(allowed_roles):
             user = jwt.get_jwt_identity()
 
             db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
+            if db_user is None:
+                raise UnauthorizedUse('Permission denied', 403)
             # make user object available to routes on flask.g
             g.user = db_user
             for role in db_user.roles:
                 if role.name in allowed_roles:
                     return f(*args, **kwargs)
-            return jsonify(msg="Permission denied"), 403
+            raise UnauthorizedUse('Permission denied', 403)
         return decorated_function
     return decorator
 
