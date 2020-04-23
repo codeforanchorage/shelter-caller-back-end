@@ -18,7 +18,7 @@ from .decorators import role_required, add_user
 from app.exceptions import InvalidUsage, UnauthorizedUse, ServerError
 
 # TODO write a real solution for this
-# This is just a stopgap to get things working
+# This is just a stopgap to get csv with tokens working
 TEMP_API_KEY = os.environ['TEMP_EXPORT_KEY']
 TEMP_PUBLIC_EXPORT_KEY = os.environ['TEMP_PUBLIC_EXPORT_KEY']
 
